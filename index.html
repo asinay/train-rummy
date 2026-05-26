@@ -29,13 +29,16 @@
 
   <!-- Profile bar -->
   <div class="profile-bar" id="profile-bar">
+    <div id="profile-loading">
+      <span class="profile-muted">Loading…</span>
+    </div>
     <div id="profile-signed-in" style="display:none">
       <span class="profile-name" id="profile-name"></span>
       <button class="profile-link" onclick="openIdentityPicker()">Change identity</button>
       <span class="profile-sep">·</span>
       <button class="profile-link" onclick="signOut()">Sign out</button>
     </div>
-    <div id="profile-signed-out">
+    <div id="profile-signed-out" style="display:none">
       <span class="profile-muted">First time? <button class="profile-link" onclick="openAuthSheet()">Sign in</button> to host games &amp; track your wins</span>
     </div>
   </div>
@@ -52,6 +55,7 @@
     <div class="group-bar-inner">
       <span class="group-bar-icon">👥</span>
       <span class="group-bar-name" id="group-bar-name"></span>
+      <button class="group-bar-invite" onclick="openInviteSheet()">+ Invite</button>
       <button class="group-bar-switch" onclick="switchGroup()">Switch</button>
     </div>
   </div>
@@ -260,6 +264,36 @@
   </div>
 </div>
 
+<!-- INVITE SHEET -->
+<div class="overlay" id="invite-overlay" onclick="maybeCloseInviteSheet(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl" id="invite-sheet-title">Invite to Group</div>
+      <button class="x-btn" onclick="closeInviteSheet()">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 16px 40px;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:20px">
+      <!-- Add from roster -->
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Add from roster</div>
+        <div id="invite-roster-chips" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px"></div>
+        <div id="invite-roster-empty" style="display:none;font-size:13px;color:var(--text-4)">Everyone in the roster is already in this group.</div>
+      </div>
+      <!-- Share link -->
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Invite link</div>
+        <p style="font-size:14px;color:var(--text-3);margin-bottom:12px;line-height:1.6">Share this link — anyone who opens it will be prompted to join the group.</p>
+        <div style="display:flex;gap:8px">
+          <input id="invite-link-inp" class="player-inp" type="text" readonly
+                 style="font-size:13px;color:var(--text-3);letter-spacing:0.5px;cursor:text" onclick="this.select()">
+          <button class="room-btn" onclick="copyInviteLink()">Copy</button>
+        </div>
+        <button id="invite-share-btn" class="add-player-btn" style="margin-top:10px" onclick="shareInviteLink()">⬆ Share…</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- GROUP JOIN/CREATE SHEET -->
 <div class="overlay" id="group-overlay" onclick="maybeCloseGroupSheet(event)">
   <div class="sheet">
@@ -323,11 +357,7 @@
         <div id="admin-players-list"><div class="chips-loading">Loading…</div></div>
       </div>
 
-      <!-- Active game rooms section -->
-      <div>
-        <div class="admin-section-title">Active Game Rooms</div>
-        <div id="admin-rooms-list"><div class="chips-loading">Loading…</div></div>
-      </div>
+
 
       <!-- Game history section -->
       <div>
