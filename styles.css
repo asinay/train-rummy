@@ -48,6 +48,14 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .start-btn:active{transform:scale(0.97)}
 .rules-link{background:none;border:none;color:var(--amber);font-family:'Playfair Display',serif;font-size:18px;font-weight:700;cursor:pointer;padding:10px;width:100%;max-width:400px;text-align:center;min-height:var(--tap);display:flex;align-items:center;justify-content:center}
 
+/* Profile bar */
+.profile-bar{width:100%;max-width:400px;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px;font-size:13px;flex-wrap:wrap}
+.profile-bar>div{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center}
+.profile-name{font-weight:600;color:var(--text-2)}
+.profile-muted{color:var(--text-4)}
+.profile-link{background:none;border:none;color:var(--amber);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+.profile-sep{color:var(--text-4)}
+
 /* ── GAME ── */
 #game{padding-bottom:env(safe-area-inset-bottom,16px)}
 .game-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 10px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;gap:8px}

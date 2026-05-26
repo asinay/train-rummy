@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- ── CONFIG — replace with your Supabase project values ── -->
+  <!-- ── CONFIG ── -->
   <script>
     window.APP_CONFIG = {
       supabaseUrl:     'https://svxqydcwiexgnhjezkrb.supabase.co',
@@ -25,6 +25,20 @@
   <div class="logo">🚄 Train Rummy</div>
   <div class="logo-sub">Score Tracker</div>
   <div class="suits">♠ <span class="r">♥</span> ♣ <span class="r">♦</span></div>
+
+  <!-- Profile bar -->
+  <div class="profile-bar" id="profile-bar">
+    <div id="profile-signed-in" style="display:none">
+      <span class="profile-name" id="profile-name"></span>
+      <button class="profile-link" onclick="openIdentityPicker()">Change identity</button>
+      <span class="profile-sep">·</span>
+      <button class="profile-link" onclick="signOut()">Sign out</button>
+    </div>
+    <div id="profile-signed-out">
+      <span class="profile-muted">Sign in to host games</span>
+      <button class="profile-link" onclick="openAuthSheet()">Sign in</button>
+    </div>
+  </div>
 
   <div class="field-label">Join existing game</div>
   <div class="room-row">
@@ -108,6 +122,49 @@
   <button class="win-btn" onclick="newGame()">New Game</button>
   <button class="win-btn sec" onclick="showScreen('game')">View Scores</button>
   <button class="win-btn sec" onclick="showStats()">📊 All-time stats</button>
+</div>
+
+<!-- AUTH SHEET -->
+<div class="overlay" id="auth-overlay" onclick="maybeCloseAuth(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl">Sign in</div>
+      <button class="x-btn" onclick="closeAuthSheet()">✕</button>
+    </div>
+    <div style="padding:20px 20px 40px;display:flex;flex-direction:column;gap:14px">
+      <p style="font-size:14px;color:var(--text-3);line-height:1.6">
+        Enter your email and we'll send you a magic sign-in link. No password needed.
+      </p>
+      <input id="auth-email" class="player-inp" type="email" placeholder="your@email.com"
+             autocomplete="email" autocorrect="off" autocapitalize="none" inputmode="email">
+      <button class="rec-btn" onclick="sendMagicLink()">Send sign-in link</button>
+      <div id="auth-msg" style="font-size:13px;text-align:center;display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- IDENTITY PICKER SHEET -->
+<div class="overlay" id="identity-overlay" onclick="maybeCloseIdentity(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl">Who are you?</div>
+      <button class="x-btn" onclick="closeIdentityPicker()">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 16px 36px;-webkit-overflow-scrolling:touch">
+      <p style="font-size:14px;color:var(--text-3);margin-bottom:16px;line-height:1.6">
+        Pick your player name so we know who you are in each game.
+      </p>
+      <div id="identity-chips" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px"></div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Or add yourself as a new player</div>
+      <div style="display:flex;gap:8px">
+        <input id="identity-new-inp" class="player-inp" type="text" placeholder="Your name"
+               autocorrect="off" autocomplete="off">
+        <button class="room-btn" onclick="identityCreateNew()">Add</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- RULES OVERLAY -->

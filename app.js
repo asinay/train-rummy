@@ -12,6 +12,8 @@ const RULES = [
 // ── State ──────────────────────────────────────────────────────────────────
 let sb = null;
 let adminCode = 'asaf';
+let currentUser = null;   // auth.users row
+let userProfile = null;   // profiles row (includes player_id)
 
 // players = [{id, name, total}] for current game
 // playerRecords = [{id, display_name}] from DB roster
@@ -311,6 +313,7 @@ function setSyncDot(fresh) {
 // ── Game ───────────────────────────────────────────────────────────────────
 
 async function startGame() {
+  if (!currentUser) { openAuthSheet(); showToast('Sign in to host a game'); return; }
   const selected = getSelectedPlayers();
   if (selected.length < 2) { showToast('Select at least 2 players'); return; }
 
@@ -318,7 +321,7 @@ async function startGame() {
   const client = getSupabase();
 
   const { data: room, error } = await client.from('game_rooms')
-    .insert({ room_code: currentRoom, status: 'active' })
+    .insert({ room_code: currentRoom, status: 'active', created_by: currentUser.id })
     .select('id')
     .single();
   if (error) { showToast('Could not create game'); return; }
@@ -745,8 +748,140 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+// ── Auth ───────────────────────────────────────────────────────────────────
+
+function renderProfileBar() {
+  const signedIn  = document.getElementById('profile-signed-in');
+  const signedOut = document.getElementById('profile-signed-out');
+  const nameEl    = document.getElementById('profile-name');
+
+  if (currentUser) {
+    const label = userProfile?.player_name || currentUser.email;
+    nameEl.textContent = '👤 ' + label;
+    signedIn.style.display  = 'flex';
+    signedOut.style.display = 'none';
+  } else {
+    signedIn.style.display  = 'none';
+    signedOut.style.display = 'flex';
+  }
+}
+
+async function loadUserProfile() {
+  const client = getSupabase();
+  const { data: { user } } = await client.auth.getUser();
+  currentUser = user || null;
+  userProfile = null;
+
+  if (currentUser) {
+    const { data } = await client
+      .from('profiles')
+      .select('id, player_id, players(display_name)')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+    userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
+  }
+  renderProfileBar();
+
+  // First sign-in with no identity linked → prompt picker
+  if (currentUser && userProfile && !userProfile.player_id) {
+    openIdentityPicker();
+  }
+}
+
+// Auth sheet (magic link)
+function openAuthSheet() {
+  document.getElementById('auth-email').value = '';
+  setAuthMsg('', '');
+  document.getElementById('auth-overlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('auth-email').focus(), 100);
+}
+function closeAuthSheet() { document.getElementById('auth-overlay').style.display = 'none'; }
+function maybeCloseAuth(e) { if (e.target === document.getElementById('auth-overlay')) closeAuthSheet(); }
+
+function setAuthMsg(msg, color) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = msg;
+  el.style.color = color === 'error' ? 'var(--red)' : color === 'success' ? 'var(--green)' : 'var(--text-3)';
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById('auth-email').value.trim();
+  if (!email) { setAuthMsg('Enter your email first.', 'error'); return; }
+  try {
+    setAuthMsg('Sending link…', '');
+    const client = getSupabase();
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+    if (error) throw error;
+    setAuthMsg(`Link sent to ${email} — check your inbox.`, 'success');
+  } catch (e) {
+    setAuthMsg(e.message || 'Could not send link', 'error');
+  }
+}
+
+async function signOut() {
+  const client = getSupabase();
+  await client.auth.signOut();
+  currentUser = null; userProfile = null;
+  renderProfileBar();
+  showToast('Signed out');
+}
+
+// Identity picker
+function openIdentityPicker() {
+  const chips = document.getElementById('identity-chips');
+  chips.innerHTML = '';
+  document.getElementById('identity-new-inp').value = '';
+  playerRecords.forEach(p => {
+    const chip = document.createElement('button');
+    chip.className = 'player-chip';
+    chip.textContent = p.display_name;
+    chip.onclick = () => identitySelect(p.id, p.display_name);
+    chips.appendChild(chip);
+  });
+  document.getElementById('identity-overlay').style.display = 'flex';
+}
+function closeIdentityPicker() { document.getElementById('identity-overlay').style.display = 'none'; }
+function maybeCloseIdentity(e) { if (e.target === document.getElementById('identity-overlay')) closeIdentityPicker(); }
+
+async function identitySelect(playerId, playerName) {
+  const client = getSupabase();
+  await client.from('profiles').update({ player_id: playerId }).eq('id', currentUser.id);
+  userProfile = { ...userProfile, player_id: playerId, player_name: playerName };
+  renderProfileBar();
+  closeIdentityPicker();
+  showToast(`Identity set to ${playerName}`);
+}
+
+async function identityCreateNew() {
+  const name = document.getElementById('identity-new-inp').value.trim();
+  if (!name) return;
+  if (playerRecords.some(p => p.display_name.toLowerCase() === name.toLowerCase())) {
+    showToast('That name already exists — tap it above'); return;
+  }
+  try {
+    const record = await saveNewPlayerToRoster(name);
+    renderPlayerChips();
+    await identitySelect(record.id, record.display_name);
+  } catch (e) {
+    showToast('Could not create player');
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 
 buildTopics();
 loadAppSettings();
 loadPlayerRoster();
+
+// Auth state listener — fires on page load (existing session) and on magic link callback
+getSupabase().auth.onAuthStateChange(async (event, session) => {
+  currentUser = session?.user || null;
+  await loadUserProfile();
+  // After magic link callback, close auth sheet if open
+  if (event === 'SIGNED_IN') {
+    closeAuthSheet();
+    if (!userProfile?.player_id) openIdentityPicker();
+  }
+});
