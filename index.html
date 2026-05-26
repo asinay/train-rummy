@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Train Rummy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- ── CONFIG — replace with your Supabase project values ── -->
+  <script>
+    window.APP_CONFIG = {
+      supabaseUrl:     'https://svxqydcwiexgnhjezkrb.supabase.co',
+      supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2eHF5ZGN3aWV4Z25oamV6a3JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NjI3NTEsImV4cCI6MjA5NTMzODc1MX0.rm4BBOSLsSnXY2TufNrFFvCc11Ldru8iA9UIOs50YH4'
+    };
+  </script>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup" class="screen active">
+  <div class="logo">🚄 Train Rummy</div>
+  <div class="logo-sub">Score Tracker</div>
+  <div class="suits">♠ <span class="r">♥</span> ♣ <span class="r">♦</span></div>
+
+  <div class="field-label">Join existing game</div>
+  <div class="room-row">
+    <input class="room-inp" id="join-code" placeholder="Room code (e.g. TRAIN-4829)" maxlength="12"
+           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+    <button class="room-btn" onclick="joinRoom()">Join</button>
+  </div>
+
+  <div class="or-divider">or start a new game</div>
+
+  <div class="field-label">Players today</div>
+  <div class="player-chips" id="player-chips">
+    <div class="chips-loading">Loading players…</div>
+  </div>
+  <button class="add-player-btn" onclick="openAddPlayerSheet()">+ New player</button>
+
+  <button class="start-btn" onclick="startGame()">Start Game →</button>
+  <button class="rules-link" onclick="openRules()">📖 How to play Train Rummy</button>
+  <button class="rules-link" onclick="showStats()">📊 All-time stats</button>
+  <button class="rules-link" style="color:var(--text-4);font-size:14px" onclick="openAdmin()">⚙️ Admin</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+  <div class="game-hdr">
+    <div class="game-hdr-left">
+      <div class="game-title">🚄 Train Rummy</div>
+      <div class="round-lbl" id="round-lbl">Round 1</div>
+      <span class="room-badge" id="room-badge"></span>
+    </div>
+    <div class="hbtns">
+      <button class="hbtn" id="sync-btn" onclick="syncNow()"><span class="sync-dot" id="sync-dot"></span>Live</button>
+      <button class="hbtn" onclick="openRules()">📖</button>
+      <button class="hbtn" id="add-players-btn" onclick="openAddPlayers()">➕</button>
+      <button class="hbtn" id="undo-btn" onclick="undoRound()">↩</button>
+      <button class="hbtn" id="end-btn" onclick="endGame()">🏁</button>
+    </div>
+  </div>
+  <div class="scoreboard" id="scoreboard"></div>
+  <button id="back-to-home" class="hbtn"
+          style="display:none;margin:10px 12px 0;width:calc(100% - 24px);height:44px;font-size:14px"
+          onclick="newGame()">← Back to home</button>
+  <div class="entry-panel" id="entry-panel">
+    <div class="ep-hdr" onclick="togglePanel()">
+      <span class="ep-title">Add Round Scores</span>
+      <span class="ep-chev open" id="ep-chev">▲</span>
+    </div>
+    <div id="panel-body">
+      <div style="padding:12px 12px 0">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Quick penalty / bonus</div>
+        <div class="helper-row" id="helper-row" style="padding:0;margin-bottom:4px"></div>
+      </div>
+      <div class="entries-grid" id="entries"></div>
+      <div style="padding:0 12px 14px">
+        <button class="rec-btn" onclick="submitRound()">Record Round</button>
+      </div>
+    </div>
+  </div>
+  <div class="hist-section">
+    <div class="hist-title">Round History</div>
+    <div class="hist-tbl" id="hist-tbl"><div class="hist-inner" id="hist-inner"></div></div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div id="stats" class="screen">
+  <div class="stats-hdr">
+    <button class="back-btn" onclick="showScreen('setup')">← Back</button>
+    <div class="stats-ttl">📊 All-Time Stats</div>
+  </div>
+  <div id="stats-body" style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch"></div>
+</div>
+
+<!-- WINNER -->
+<div id="winner" class="screen">
+  <div class="win-t">🏆</div>
+  <div class="win-sub">North Station — Train Rummy!</div>
+  <div class="win-name" id="win-name">—</div>
+  <div class="win-sc" id="win-sc"></div>
+  <div class="win-summary" id="win-summary"></div>
+  <button class="win-btn" onclick="newGame()">New Game</button>
+  <button class="win-btn sec" onclick="showScreen('game')">View Scores</button>
+  <button class="win-btn sec" onclick="showStats()">📊 All-time stats</button>
+</div>
+
+<!-- RULES OVERLAY -->
+<div class="overlay" id="rules-overlay" onclick="maybeCloseRules(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl">📖 Rules</div>
+      <button class="x-btn" onclick="closeRules()">✕</button>
+    </div>
+    <div id="rules-home">
+      <p class="rules-intro">House rules for the North Station express.</p>
+      <div class="topic-grid" id="topic-grid"></div>
+    </div>
+    <div id="rules-detail">
+      <div class="det-back" onclick="rulesBack()">
+        <span class="back-arr">‹</span><span class="back-txt">All Topics</span>
+        <span class="det-ttl" id="det-ttl"></span>
+      </div>
+      <div class="det-body" id="det-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PLAYERS OVERLAY (mid-game) -->
+<div class="overlay" id="addplayers-overlay" onclick="maybeCloseAddPlayers(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl">➕ Add Players</div>
+      <button class="x-btn" onclick="closeAddPlayers()">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 16px 36px;-webkit-overflow-scrolling:touch">
+      <p style="font-size:14px;color:var(--text-3);margin-bottom:16px;line-height:1.6">
+        Finish the current round first. New players start at <strong>0</strong> — existing scores carry forward.
+      </p>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Current players</div>
+      <div id="ap-current" style="margin-bottom:20px;display:flex;flex-direction:column;gap:8px"></div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Add from roster</div>
+      <div id="ap-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Or add new player</div>
+      <div id="ap-new-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px"></div>
+      <button class="add-player-btn" style="margin-bottom:20px" onclick="apAddRow()">+ Add another</button>
+      <button class="rec-btn" onclick="confirmAddPlayers()">Add to Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW PLAYER SHEET (setup screen) -->
+<div class="overlay" id="newplayer-overlay" onclick="maybeCloseNewPlayer(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl">Add New Player</div>
+      <button class="x-btn" onclick="closeNewPlayer()">✕</button>
+    </div>
+    <div style="padding:20px 16px 36px;display:flex;flex-direction:column;gap:14px">
+      <p style="font-size:14px;color:var(--text-3);line-height:1.6">
+        Add a new player to the roster. They'll be available for all future games.
+      </p>
+      <input id="new-player-inp" class="player-inp" type="text" placeholder="Player name"
+             autocorrect="off" autocomplete="off">
+      <button class="rec-btn" onclick="saveNewPlayer()">Save Player</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN OVERLAY -->
+<div class="overlay" id="admin-overlay" onclick="maybeCloseAdmin(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl">⚙️ Admin</div>
+      <button class="x-btn" onclick="closeAdmin()">✕</button>
+    </div>
+    <div id="admin-lock" style="padding:28px 20px 36px;display:flex;flex-direction:column;align-items:center;gap:16px">
+      <div style="font-size:40px">🔒</div>
+      <div style="font-size:15px;color:var(--text-3);text-align:center">Enter the admin code to continue</div>
+      <input id="admin-code-inp" class="player-inp" style="max-width:280px;text-align:center"
+             type="text" placeholder="Admin code" autocomplete="off" autocorrect="off">
+      <button class="rec-btn" style="max-width:280px" onclick="checkAdminAuth()">Continue</button>
+      <div id="admin-error" style="font-size:13px;color:var(--red);display:none">Incorrect admin code.</div>
+    </div>
+    <div id="admin-panel" style="display:none;flex:1;overflow-y:auto;padding:20px 20px 40px;flex-direction:column;gap:16px">
+      <div style="font-size:14px;color:var(--text-3);margin-bottom:8px;line-height:1.6">Careful — these actions are permanent.</div>
+      <div class="stat-card">
+        <div class="stat-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <div style="font-size:15px;font-weight:600;color:var(--text)">Reset all-time stats</div>
+          <div style="font-size:13px;color:var(--text-3)">Deletes all game history and leaderboard data.</div>
+          <div id="admin-reset-confirm" style="display:none;margin-top:4px;width:100%;background:var(--red-bg);border:1.5px solid var(--red);border-radius:12px;padding:14px;flex-direction:column;gap:10px">
+            <div style="font-size:14px;font-weight:600;color:var(--red)">Are you sure? This cannot be undone.</div>
+            <div style="display:flex;gap:8px">
+              <button class="rec-btn" style="background:var(--red);flex:1;height:46px;font-size:15px" onclick="adminResetStats()">Yes, reset</button>
+              <button class="rec-btn" style="background:var(--card2);color:var(--text-2);box-shadow:none;flex:1;height:46px;font-size:15px" onclick="hideResetConfirm()">Cancel</button>
+            </div>
+          </div>
+          <button id="admin-reset-btn" class="rec-btn" style="background:var(--red);margin-top:4px;height:46px" onclick="showResetConfirm()">Reset Stats</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
