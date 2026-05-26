@@ -171,15 +171,17 @@ async function loadAppSettings() {
 async function loadPlayerRoster() {
   try {
     const client = getSupabase();
-    const { data } = await client.from('players')
+    const { data, error } = await client.from('players')
       .select('id, display_name')
       .eq('is_active', true)
       .order('sort_order');
+    if (error) throw error;
     playerRecords = data || [];
     renderPlayerChips();
   } catch (e) {
+    console.error('loadPlayerRoster failed:', e);
     document.getElementById('player-chips').innerHTML =
-      '<div class="chips-loading" style="color:var(--red)">Could not load players</div>';
+      `<div class="chips-loading" style="color:var(--red)">Could not load players: ${e.message}</div>`;
   }
 }
 
@@ -820,24 +822,28 @@ function renderProfileBar() {
 }
 
 async function loadUserProfile() {
-  const client = getSupabase();
-  const { data: { user } } = await client.auth.getUser();
-  currentUser = user || null;
-  userProfile = null;
+  try {
+    const client = getSupabase();
+    const { data: { user } } = await client.auth.getUser();
+    currentUser = user || null;
+    userProfile = null;
 
-  if (currentUser) {
-    const { data } = await client
-      .from('profiles')
-      .select('id, player_id, players(display_name)')
-      .eq('id', currentUser.id)
-      .maybeSingle();
-    userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
-  }
-  renderProfileBar();
+    if (currentUser) {
+      const { data } = await client
+        .from('profiles')
+        .select('id, player_id, players(display_name)')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+      userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
+    }
+    renderProfileBar();
 
-  // First sign-in with no identity linked → prompt picker
-  if (currentUser && userProfile && !userProfile.player_id) {
-    openIdentityPicker();
+    // First sign-in with no identity linked → prompt picker
+    if (currentUser && userProfile && !userProfile.player_id) {
+      openIdentityPicker();
+    }
+  } catch (e) {
+    console.error('loadUserProfile failed:', e);
   }
 }
 
@@ -930,11 +936,25 @@ loadPlayerRoster();
 
 // Auth state listener — fires on page load (existing session) and on magic link callback
 getSupabase().auth.onAuthStateChange(async (event, session) => {
-  currentUser = session?.user || null;
-  await loadUserProfile();
-  // After magic link callback, close auth sheet if open
-  if (event === 'SIGNED_IN') {
-    closeAuthSheet();
-    if (!userProfile?.player_id) openIdentityPicker();
+  try {
+    currentUser = session?.user || null;
+    userProfile = null;
+
+    if (currentUser) {
+      const { data } = await getSupabase()
+        .from('profiles')
+        .select('id, player_id, players(display_name)')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+      userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
+    }
+    renderProfileBar();
+
+    if (event === 'SIGNED_IN') {
+      closeAuthSheet();
+      if (!userProfile?.player_id) openIdentityPicker();
+    }
+  } catch (e) {
+    console.error('onAuthStateChange failed:', e);
   }
 });
