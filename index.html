@@ -40,22 +40,48 @@
     </div>
   </div>
 
-  <div class="field-label">Join existing game</div>
-  <div class="room-row">
-    <input class="room-inp" id="join-code" placeholder="Room code (e.g. TRAIN-4829)" maxlength="12"
-           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-    <button class="room-btn" onclick="joinRoom()">Join</button>
+  <!-- Group picker — shown when signed in, no group selected yet (or switching) -->
+  <div id="group-picker-section" style="display:none;width:100%;max-width:400px">
+    <div class="field-label">Your groups</div>
+    <div id="group-picker-list"></div>
+    <button class="add-player-btn" style="margin-top:4px" onclick="openGroupSheet()">+ Join or create a group</button>
   </div>
 
-  <div class="or-divider">or start a new game</div>
-
-  <div class="field-label">Players today</div>
-  <div class="player-chips" id="player-chips">
-    <div class="chips-loading">Loading players…</div>
+  <!-- Active group bar — shown once a group is selected -->
+  <div id="group-bar" style="display:none;width:100%;max-width:400px;margin-bottom:20px">
+    <div class="group-bar-inner">
+      <span class="group-bar-icon">👥</span>
+      <span class="group-bar-name" id="group-bar-name"></span>
+      <button class="group-bar-switch" onclick="switchGroup()">Switch</button>
+    </div>
   </div>
-  <button class="add-player-btn" onclick="openAddPlayerSheet()">+ New player</button>
 
-  <button class="start-btn" id="start-btn" onclick="startGame()">Start Game →</button>
+  <!-- Game section — shown when a group is selected (or always when signed out) -->
+  <div id="game-section">
+    <!-- My active games — shown only when there's an active game in this group -->
+    <div id="my-games-section" style="display:none;width:100%;max-width:400px">
+      <div class="field-label">Continue a game</div>
+      <div id="my-games-list"></div>
+    </div>
+
+    <div class="field-label">Join existing game</div>
+    <div class="room-row">
+      <input class="room-inp" id="join-code" placeholder="Room code (e.g. TRAIN-4829)" maxlength="12"
+             autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <button class="room-btn" onclick="joinRoom()">Join</button>
+    </div>
+
+    <div class="or-divider">or start a new game</div>
+
+    <div class="field-label">Players today</div>
+    <div class="player-chips" id="player-chips">
+      <div class="chips-loading">Loading players…</div>
+    </div>
+    <button class="add-player-btn" onclick="openAddPlayerSheet()">+ New player</button>
+
+    <button class="start-btn" id="start-btn" onclick="startGame()">Start Game →</button>
+  </div>
+
   <button class="rules-link" onclick="openRules()">📖 How to play Train Rummy</button>
   <button class="rules-link" onclick="showStats()">📊 All-time stats</button>
   <button class="rules-link" style="color:var(--text-4);font-size:14px" onclick="openAdmin()">⚙️ Admin</button>
@@ -234,6 +260,38 @@
   </div>
 </div>
 
+<!-- GROUP JOIN/CREATE SHEET -->
+<div class="overlay" id="group-overlay" onclick="maybeCloseGroupSheet(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl">Groups</div>
+      <button class="x-btn" onclick="closeGroupSheet()">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 16px 40px;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:20px">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Join an existing group</div>
+        <p style="font-size:14px;color:var(--text-3);margin-bottom:12px;line-height:1.6">Ask a group member for their group code.</p>
+        <div style="display:flex;gap:8px">
+          <input id="group-join-inp" class="player-inp" type="text" placeholder="Group code (e.g. TRAIN)"
+                 autocorrect="off" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:2px">
+          <button class="room-btn" onclick="joinGroup()">Join</button>
+        </div>
+        <div id="group-join-msg" style="font-size:13px;margin-top:8px;display:none"></div>
+      </div>
+      <div class="or-divider" style="margin:0">or create a new group</div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Create a group</div>
+        <p style="font-size:14px;color:var(--text-3);margin-bottom:12px;line-height:1.6">Give your group a name. You'll get a code to share with friends.</p>
+        <input id="group-name-inp" class="player-inp" type="text" placeholder="Group name (e.g. Train Commuters)"
+               autocorrect="off" autocomplete="off" style="margin-bottom:10px">
+        <button class="rec-btn" onclick="createGroup()">Create Group</button>
+        <div id="group-create-msg" style="font-size:13px;margin-top:8px;display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN OVERLAY -->
 <div class="overlay" id="admin-overlay" onclick="maybeCloseAdmin(event)">
   <div class="sheet">
@@ -250,20 +308,49 @@
       <button class="rec-btn" style="max-width:280px" onclick="checkAdminAuth()">Continue</button>
       <div id="admin-error" style="font-size:13px;color:var(--red);display:none">Incorrect admin code.</div>
     </div>
-    <div id="admin-panel" style="display:none;flex:1;overflow-y:auto;padding:20px 20px 40px;flex-direction:column;gap:16px">
-      <div style="font-size:14px;color:var(--text-3);margin-bottom:8px;line-height:1.6">Careful — these actions are permanent.</div>
-      <div class="stat-card">
-        <div class="stat-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-          <div style="font-size:15px;font-weight:600;color:var(--text)">Reset all-time stats</div>
-          <div style="font-size:13px;color:var(--text-3)">Deletes all game history and leaderboard data.</div>
-          <div id="admin-reset-confirm" style="display:none;margin-top:4px;width:100%;background:var(--red-bg);border:1.5px solid var(--red);border-radius:12px;padding:14px;flex-direction:column;gap:10px">
-            <div style="font-size:14px;font-weight:600;color:var(--red)">Are you sure? This cannot be undone.</div>
-            <div style="display:flex;gap:8px">
-              <button class="rec-btn" style="background:var(--red);flex:1;height:46px;font-size:15px" onclick="adminResetStats()">Yes, reset</button>
-              <button class="rec-btn" style="background:var(--card2);color:var(--text-2);box-shadow:none;flex:1;height:46px;font-size:15px" onclick="hideResetConfirm()">Cancel</button>
+    <div id="admin-panel" style="display:none;flex:1;overflow-y:auto;padding:20px 20px 40px;flex-direction:column;gap:24px">
+      <div style="font-size:14px;color:var(--text-3);line-height:1.6">Super-admin controls. These actions are permanent.</div>
+
+      <!-- Groups section -->
+      <div>
+        <div class="admin-section-title">Groups</div>
+        <div id="admin-groups-list"><div class="chips-loading">Loading…</div></div>
+      </div>
+
+      <!-- Players section -->
+      <div>
+        <div class="admin-section-title">Players</div>
+        <div id="admin-players-list"><div class="chips-loading">Loading…</div></div>
+      </div>
+
+      <!-- Active game rooms section -->
+      <div>
+        <div class="admin-section-title">Active Game Rooms</div>
+        <div id="admin-rooms-list"><div class="chips-loading">Loading…</div></div>
+      </div>
+
+      <!-- Game history section -->
+      <div>
+        <div class="admin-section-title">Game History</div>
+        <div id="admin-history-list"><div class="chips-loading">Loading…</div></div>
+      </div>
+
+      <!-- Danger zone -->
+      <div>
+        <div class="admin-section-title" style="color:var(--red)">Danger Zone</div>
+        <div class="stat-card">
+          <div class="stat-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+            <div style="font-size:15px;font-weight:600;color:var(--text)">Reset all-time stats</div>
+            <div style="font-size:13px;color:var(--text-3)">Deletes all game history across all groups.</div>
+            <div id="admin-reset-confirm" style="display:none;margin-top:4px;width:100%;background:var(--red-bg);border:1.5px solid var(--red);border-radius:12px;padding:14px;flex-direction:column;gap:10px">
+              <div style="font-size:14px;font-weight:600;color:var(--red)">Are you sure? This cannot be undone.</div>
+              <div style="display:flex;gap:8px">
+                <button class="rec-btn" style="background:var(--red);flex:1;height:46px;font-size:15px" onclick="adminResetStats()">Yes, reset</button>
+                <button class="rec-btn" style="background:var(--card2);color:var(--text-2);box-shadow:none;flex:1;height:46px;font-size:15px" onclick="hideResetConfirm()">Cancel</button>
+              </div>
             </div>
+            <button id="admin-reset-btn" class="rec-btn" style="background:var(--red);margin-top:4px;height:46px" onclick="showResetConfirm()">Reset All Stats</button>
           </div>
-          <button id="admin-reset-btn" class="rec-btn" style="background:var(--red);margin-top:4px;height:46px" onclick="showResetConfirm()">Reset Stats</button>
         </div>
       </div>
     </div>

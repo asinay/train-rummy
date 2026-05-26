@@ -11,6 +11,11 @@ train-rummy.html
 .DS_Store
 Thumbs.db
 
+# Generated files
+*.pptx
+linkedin-post.md
+make_ppt.py
+
 # Editors
 .vscode/
 .idea/
