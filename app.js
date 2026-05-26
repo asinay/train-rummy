@@ -135,21 +135,27 @@ async function loadHistory() {
   const client = getSupabase();
   const { data } = await client.from('game_history')
     .select('*')
-    .order('played_at', { ascending: false })
-    .limit(50);
-  return (data || []).map(g => ({
-    date: new Date(g.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    ts: new Date(g.played_at).getTime(),
-    winner: g.winner_name,
-    winnerScore: g.winner_score,
-    players: g.player_names.map(name => {
-      const found = (g.legs_json || []).flatMap(l => l.players || []).find(p => p.name === name);
-      return { name, total: found?.legTotal || 0 };
-    }),
-    legs: g.legs_json || [],
-    rounds: g.rounds_count,
-    room: g.room_code
-  }));
+    .order('played_at', { ascending: false });
+  return (data || []).map(g => {
+    const legs = g.legs_json || [];
+    // Sum each player's score across all legs
+    const playerTotals = {};
+    legs.forEach(leg => {
+      (leg.players || []).forEach(p => {
+        playerTotals[p.name] = (playerTotals[p.name] || 0) + (p.legTotal || 0);
+      });
+    });
+    return {
+      date: new Date(g.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      ts: new Date(g.played_at).getTime(),
+      winner: g.winner_name,
+      winnerScore: g.winner_score,
+      players: g.player_names.map(name => ({ name, total: playerTotals[name] || 0 })),
+      legs,
+      rounds: g.rounds_count,
+      room: g.room_code
+    };
+  });
 }
 
 // ── App settings & roster loading ─────────────────────────────────────────
@@ -623,7 +629,10 @@ function newGame() {
 
 // ── Stats ──────────────────────────────────────────────────────────────────
 
-function showStats() { showScreen('stats'); }
+let statsHistoryExpanded = false;
+const STATS_HISTORY_INITIAL = 10;
+
+function showStats() { statsHistoryExpanded = false; _cachedHistory = null; showScreen('stats'); }
 
 async function renderStats() {
   const body = document.getElementById('stats-body');
@@ -634,22 +643,27 @@ async function renderStats() {
     return;
   }
 
+  // Build per-player stats
   const pmap = {};
-  const ensure = name => { if (!pmap[name]) pmap[name] = { name, games: 0, legWins: 0, roundWins: 0, totalRounds: 0, totalScore: 0 }; };
+  const ensure = name => {
+    if (!pmap[name]) pmap[name] = { name, games: 0, gameWins: 0, legWins: 0, roundWins: 0, totalRounds: 0, totalScore: 0 };
+  };
   history.forEach(g => {
     g.players.forEach(p => { ensure(p.name); pmap[p.name].games++; pmap[p.name].totalScore += p.total; });
+    ensure(g.winner); pmap[g.winner].gameWins++;
     const legs = g.legs || [{ winner: g.winner, rounds: g.rounds, players: g.players.map(p => ({ name: p.name, roundWins: p.roundWins || 0 })) }];
     legs.forEach(leg => {
-      leg.players.forEach(p => { ensure(p.name); pmap[p.name].roundWins += (p.roundWins || 0); pmap[p.name].totalRounds += leg.rounds; });
+      (leg.players || []).forEach(p => { ensure(p.name); pmap[p.name].roundWins += (p.roundWins || 0); pmap[p.name].totalRounds += (leg.rounds || 0); });
       if (leg.winner) { ensure(leg.winner); pmap[leg.winner].legWins++; }
     });
   });
 
   const allPlayers = Object.values(pmap).map(p => ({
     ...p,
+    gwPct: p.games ? Math.round(100 * p.gameWins / p.games) : 0,
     rwPct: p.totalRounds ? Math.round(100 * p.roundWins / p.totalRounds) : 0,
     avgPerRound: p.totalRounds ? Math.round(p.totalScore / p.totalRounds) : 0,
-  })).sort((a, b) => b.rwPct - a.rwPct || b.avgPerRound - a.avgPerRound || b.totalScore - a.totalScore);
+  })).sort((a, b) => b.gwPct - a.gwPct || b.rwPct - a.rwPct || b.avgPerRound - a.avgPerRound);
 
   const medals = ['🥇', '🥈', '🥉'];
   const leaderRows = allPlayers.map((p, i) => `
@@ -657,25 +671,64 @@ async function renderStats() {
       <div class="stat-medal">${medals[i] || ''}</div>
       <div class="stat-name">${p.name}</div>
       <div class="stat-vals">
-        <div class="stat-main">${p.rwPct}% <span style="font-size:13px;color:var(--text-3)">rounds won</span></div>
-        <div class="stat-sub">${p.roundWins}/${p.totalRounds} rounds · ${p.legWins} leg win${p.legWins !== 1 ? 's' : ''}</div>
-        <div class="stat-sub">avg ${p.avgPerRound >= 0 ? '+' : ''}${p.avgPerRound}/round · total ${p.totalScore}</div>
+        <div class="stat-main">${p.gwPct}% <span style="font-size:13px;color:var(--text-3)">games won</span></div>
+        <div class="stat-sub">${p.gameWins} win${p.gameWins !== 1 ? 's' : ''} / ${p.games} game${p.games !== 1 ? 's' : ''} · ${p.legWins} leg win${p.legWins !== 1 ? 's' : ''}</div>
+        <div class="stat-sub">${p.rwPct}% rounds won · avg ${p.avgPerRound >= 0 ? '+' : ''}${p.avgPerRound}/round</div>
       </div>
-    </div>`).join('');
-
-  const histRows = history.slice(0, 12).map(g => `
-    <div class="game-hist-row">
-      <div class="gh-date">${g.date}</div>
-      <div class="gh-info">
-        <div class="gh-winner">🏆 ${g.winner}</div>
-        <div class="gh-players">${g.players.map(p => p.name).join(', ')} · ${g.rounds} rounds</div>
-      </div>
-      <div class="gh-pts">${g.winnerScore}</div>
     </div>`).join('');
 
   body.innerHTML = `
-    <div class="stat-section"><div class="stat-sec-title">Leaderboard</div><div class="stat-card">${leaderRows}</div></div>
-    <div class="stat-section"><div class="stat-sec-title">Recent Games</div><div class="stat-card">${histRows}</div></div>`;
+    <div class="stat-section"><div class="stat-sec-title">Leaderboard — ${history.length} game${history.length !== 1 ? 's' : ''}</div><div class="stat-card">${leaderRows}</div></div>
+    <div class="stat-section" id="history-section"></div>`;
+
+  renderHistorySection(history);
+}
+
+function renderHistorySection(history) {
+  const section = document.getElementById('history-section');
+  if (!section) return;
+
+  const visible = statsHistoryExpanded ? history : history.slice(0, STATS_HISTORY_INITIAL);
+  const hasMore = history.length > STATS_HISTORY_INITIAL;
+
+  const histRows = visible.map(g => {
+    const sorted = [...g.players].sort((a, b) => b.total - a.total);
+    const winner = sorted[0];
+    const margin = sorted.length > 1 ? winner.total - sorted[1].total : 0;
+    return `
+    <div class="game-hist-row">
+      <div class="gh-date">${g.date}</div>
+      <div class="gh-info">
+        <div class="gh-winner">🏆 ${g.winner} <span style="color:var(--text-4);font-size:11px">+${margin} pts</span></div>
+        <div class="gh-players">${g.players.map(p => p.name).join(', ')} · ${g.rounds} round${g.rounds !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="gh-pts">${g.winnerScore}</div>
+    </div>`;
+  }).join('');
+
+  const showMoreBtn = (!statsHistoryExpanded && hasMore)
+    ? `<button onclick="expandStatsHistory()" style="width:100%;padding:14px;background:none;border:none;color:var(--amber);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show all ${history.length} games ▾</button>`
+    : (statsHistoryExpanded && hasMore)
+    ? `<button onclick="collapseStatsHistory()" style="width:100%;padding:14px;background:none;border:none;color:var(--text-4);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show less ▴</button>`
+    : '';
+
+  section.innerHTML = `
+    <div class="stat-sec-title">Game History</div>
+    <div class="stat-card">${histRows}${showMoreBtn}</div>`;
+}
+
+let _cachedHistory = null;
+
+async function expandStatsHistory() {
+  statsHistoryExpanded = true;
+  if (!_cachedHistory) _cachedHistory = await loadHistory();
+  renderHistorySection(_cachedHistory);
+}
+
+async function collapseStatsHistory() {
+  statsHistoryExpanded = false;
+  if (!_cachedHistory) _cachedHistory = await loadHistory();
+  renderHistorySection(_cachedHistory);
 }
 
 // ── Rules ──────────────────────────────────────────────────────────────────
