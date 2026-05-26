@@ -15,6 +15,7 @@ let adminCode = 'asaf';
 let currentUser = null;   // auth.users row
 let userProfile = null;   // profiles row (includes player_id)
 
+
 // players = [{id, name, total}] for current game
 // playerRecords = [{id, display_name}] from DB roster
 let players = [], playerRecords = [], rounds = [];
@@ -48,7 +49,7 @@ async function loadGameState(code) {
     .select('id, room_code, status, updated_at')
     .eq('room_code', code)
     .eq('status', 'active')
-    .single();
+    .maybeSingle();
   if (!room) return null;
 
   const { data: gamePlayers } = await client.from('game_players')
@@ -116,7 +117,7 @@ async function saveGameToHistory(winner, finalPlayers, numRounds) {
     };
   });
 
-  await client.from('game_history').insert({
+  const { error: histError } = await client.from('game_history').insert({
     game_id: currentGameId,
     room_code: currentRoom,
     winner_name: winner.name,
@@ -125,9 +126,11 @@ async function saveGameToHistory(winner, finalPlayers, numRounds) {
     player_names: finalPlayers.map(p => p.name),
     legs_json: legSummaries
   });
+  if (histError) console.warn('game_history insert:', histError.message);
 
   if (currentGameId) {
-    await client.from('game_rooms').update({ status: 'ended' }).eq('id', currentGameId);
+    const { error: roomError } = await client.from('game_rooms').update({ status: 'ended' }).eq('id', currentGameId);
+    if (roomError) console.warn('game_rooms update:', roomError.message);
   }
 }
 
@@ -568,7 +571,11 @@ async function confirmAddPlayers() {
 async function endGame() {
   if (!rounds.length) { showToast('No rounds recorded yet'); return; }
   const sorted = [...players].map((p, i) => ({ ...p, i })).sort((a, b) => b.total - a.total);
-  await saveGameToHistory(sorted[0], players, rounds.length);
+  try {
+    await saveGameToHistory(sorted[0], players, rounds.length);
+  } catch (e) {
+    console.error('saveGameToHistory failed:', e);
+  }
   showWinner();
 }
 
@@ -611,10 +618,26 @@ function showWinner() {
     </div>`;
   });
 
+  // Collect leg winners (deduplicated for display)
+  const legWinners = [...new Map(legs.map(leg => {
+    const legRounds = rounds.slice(leg.start, leg.end);
+    const activePlayers = players.map((p, pi) => ({ ...p, pi })).filter(p => legRounds.some(r => r[p.pi] !== null));
+    const legTotals = activePlayers.map(p => ({ ...p, legTotal: legRounds.reduce((sum, r) => sum + (r[p.pi] || 0), 0) })).sort((a, b) => b.legTotal - a.legTotal);
+    return [legTotals[0]?.name, legTotals[0]];
+  })).values()].filter(Boolean);
+
   const overall = [...players].map((p, pi) => ({ ...p, pi })).sort((a, b) => b.total - a.total);
   const winner = overall[0];
-  document.getElementById('win-name').textContent = winner.name;
-  document.getElementById('win-sc').textContent = `${winner.total} pts overall · ${rounds.length} round${rounds.length !== 1 ? 's' : ''}`;
+
+  if (legs.length > 1) {
+    document.querySelector('.win-t').textContent = '👑';
+    document.getElementById('win-name').innerHTML = legWinners.map(w => `<span>${w.name} 👑</span>`).join('<span style="font-size:24px;color:var(--border-strong);padding:0 8px">·</span>');
+    document.getElementById('win-sc').textContent = `${legs.length} legs · ${rounds.length} round${rounds.length !== 1 ? 's' : ''}`;
+  } else {
+    document.querySelector('.win-t').textContent = '🏆';
+    document.getElementById('win-name').textContent = winner.name;
+    document.getElementById('win-sc').textContent = `${winner.total} pts · ${rounds.length} round${rounds.length !== 1 ? 's' : ''}`;
+  }
   document.getElementById('win-summary').innerHTML = html;
   setGameEnded(true); showScreen('winner');
 }
@@ -645,27 +668,31 @@ async function renderStats() {
     return;
   }
 
-  // Build per-player stats
+  // Build per-player stats — legs are the unit of winning
   const pmap = {};
   const ensure = name => {
-    if (!pmap[name]) pmap[name] = { name, games: 0, gameWins: 0, legWins: 0, roundWins: 0, totalRounds: 0, totalScore: 0 };
+    if (!pmap[name]) pmap[name] = { name, games: 0, legWins: 0, legsPlayed: 0, roundWins: 0, totalRounds: 0, totalScore: 0 };
   };
   history.forEach(g => {
     g.players.forEach(p => { ensure(p.name); pmap[p.name].games++; pmap[p.name].totalScore += p.total; });
-    ensure(g.winner); pmap[g.winner].gameWins++;
     const legs = g.legs || [{ winner: g.winner, rounds: g.rounds, players: g.players.map(p => ({ name: p.name, roundWins: p.roundWins || 0 })) }];
     legs.forEach(leg => {
-      (leg.players || []).forEach(p => { ensure(p.name); pmap[p.name].roundWins += (p.roundWins || 0); pmap[p.name].totalRounds += (leg.rounds || 0); });
+      (leg.players || []).forEach(p => {
+        ensure(p.name);
+        pmap[p.name].legsPlayed++;
+        pmap[p.name].roundWins += (p.roundWins || 0);
+        pmap[p.name].totalRounds += (leg.rounds || 0);
+      });
       if (leg.winner) { ensure(leg.winner); pmap[leg.winner].legWins++; }
     });
   });
 
   const allPlayers = Object.values(pmap).map(p => ({
     ...p,
-    gwPct: p.games ? Math.round(100 * p.gameWins / p.games) : 0,
+    lwPct: p.legsPlayed ? Math.round(100 * p.legWins / p.legsPlayed) : 0,
     rwPct: p.totalRounds ? Math.round(100 * p.roundWins / p.totalRounds) : 0,
     avgPerRound: p.totalRounds ? Math.round(p.totalScore / p.totalRounds) : 0,
-  })).sort((a, b) => b.gwPct - a.gwPct || b.rwPct - a.rwPct || b.avgPerRound - a.avgPerRound);
+  })).sort((a, b) => b.lwPct - a.lwPct || b.rwPct - a.rwPct || b.avgPerRound - a.avgPerRound);
 
   const medals = ['🥇', '🥈', '🥉'];
   const leaderRows = allPlayers.map((p, i) => `
@@ -673,14 +700,14 @@ async function renderStats() {
       <div class="stat-medal">${medals[i] || ''}</div>
       <div class="stat-name">${p.name}</div>
       <div class="stat-vals">
-        <div class="stat-main">${p.gwPct}% <span style="font-size:13px;color:var(--text-3)">games won</span></div>
-        <div class="stat-sub">${p.gameWins} win${p.gameWins !== 1 ? 's' : ''} / ${p.games} game${p.games !== 1 ? 's' : ''} · ${p.legWins} leg win${p.legWins !== 1 ? 's' : ''}</div>
+        <div class="stat-main">${p.lwPct}% <span style="font-size:13px;color:var(--text-3)">legs won</span></div>
+        <div class="stat-sub">${p.legWins} 🏆 / ${p.legsPlayed} leg${p.legsPlayed !== 1 ? 's' : ''} · ${p.games} game${p.games !== 1 ? 's' : ''}</div>
         <div class="stat-sub">${p.rwPct}% rounds won · avg ${p.avgPerRound >= 0 ? '+' : ''}${p.avgPerRound}/round</div>
       </div>
     </div>`).join('');
 
   body.innerHTML = `
-    <div class="stat-section"><div class="stat-sec-title">Leaderboard — ${history.length} game${history.length !== 1 ? 's' : ''}</div><div class="stat-card">${leaderRows}</div></div>
+    <div class="stat-section"><div class="stat-sec-title">Leaderboard — ${history.length} game${history.length !== 1 ? 's' : ''} · ranked by leg wins</div><div class="stat-card">${leaderRows}</div></div>
     <div class="stat-section" id="history-section"></div>`;
 
   renderHistorySection(history);
@@ -694,14 +721,15 @@ function renderHistorySection(history) {
   const hasMore = history.length > STATS_HISTORY_INITIAL;
 
   const histRows = visible.map(g => {
-    const sorted = [...g.players].sort((a, b) => b.total - a.total);
-    const winner = sorted[0];
-    const margin = sorted.length > 1 ? winner.total - sorted[1].total : 0;
+    const legs = g.legs || [];
+    const legSummary = legs.length > 1
+      ? legs.map(l => `🏆 ${l.winner} <span style="color:var(--text-4)">(${l.rounds}r)</span>`).join(' · ')
+      : `🏆 ${g.winner}`;
     return `
     <div class="game-hist-row">
       <div class="gh-date">${g.date}</div>
       <div class="gh-info">
-        <div class="gh-winner">🏆 ${g.winner} <span style="color:var(--text-4);font-size:11px">+${margin} pts</span></div>
+        <div class="gh-winner">${legSummary}</div>
         <div class="gh-players">${g.players.map(p => p.name).join(', ')} · ${g.rounds} round${g.rounds !== 1 ? 's' : ''}</div>
       </div>
       <div class="gh-pts">${g.winnerScore}</div>
@@ -810,14 +838,17 @@ function renderProfileBar() {
   const signedOut = document.getElementById('profile-signed-out');
   const nameEl    = document.getElementById('profile-name');
 
+  const startBtn = document.getElementById('start-btn');
   if (currentUser) {
     const label = userProfile?.player_name || currentUser.email;
     nameEl.textContent = '👤 ' + label;
     signedIn.style.display  = 'flex';
     signedOut.style.display = 'none';
+    if (startBtn) startBtn.textContent = 'Start Game →';
   } else {
     signedIn.style.display  = 'none';
     signedOut.style.display = 'flex';
+    if (startBtn) startBtn.textContent = 'Sign in to Start Game →';
   }
 }
 
@@ -910,7 +941,7 @@ async function identitySelect(playerId, playerName) {
   userProfile = { ...userProfile, player_id: playerId, player_name: playerName };
   renderProfileBar();
   closeIdentityPicker();
-  showToast(`Identity set to ${playerName}`);
+  showToast(`Welcome aboard, ${playerName}! 🚄`);
 }
 
 async function identityCreateNew() {
