@@ -62,10 +62,10 @@ A mobile-first score tracker so one person can log rounds for the whole table â€
 ### 1. Start the local server
 
 ```bash
-python -m http.server 8765
+python local_server.py
 ```
 
-The app is now running at **http://localhost:8765**.
+The app is now running at **http://127.0.0.1:3000**.
 
 ### 2. Allow the local URL for magic link auth
 
@@ -76,6 +76,8 @@ http://localhost:8765
 ```
 
 to the **Redirect URLs** list so magic links land back on your local server after sign-in.
+
+> You can also run `python -m http.server 8765` but `local_server.py` is preferred â€” it always serves from the repo root regardless of your working directory.
 
 ### 3. Make changes, refresh, and test
 
