@@ -1,10 +1,9 @@
 const RULES = [
   {id:'obj',icon:'🎯',name:'Objective',desc:'Goal of the game',html:`<div class="d-icon">🎯</div><div class="d-title">Objective</div><div class="r-block"><div class="r-label">Goal</div><div class="r-body">Score as many points as possible before the train reaches North Station. The player with the <strong>highest score</strong> wins!</div></div><div class="r-block"><div class="r-label">How you score</div><div class="r-body"><strong>Positive:</strong> every card you meld adds to your score.<br><br><strong>Negative:</strong> cards left in hand are <em>subtracted</em> as penalties.</div></div>`},
-  {id:'deal',icon:'🃏',name:'Setup & Deal',desc:'Starting a round',html:`<div class="d-icon">🃏</div><div class="d-title">Setup & Deal</div><div class="r-block"><div class="r-label">Decks</div><div class="r-body">Use <strong>2 standard 52-card decks</strong> plus <strong>2 Jokers</strong> (104 cards total).</div></div><div class="r-block"><div class="r-label">Dealing</div><div class="r-body">Each player receives <strong>14 cards</strong>. Flip one card to start the discard pile.</div></div><div class="r-block"><div class="r-label">First player</div><div class="r-body">Player to the dealer's left goes first. Play is <strong>clockwise</strong>.</div></div>`},
-  {id:'turn',icon:'🔄',name:'Taking a Turn',desc:'Draw, meld, discard',html:`<div class="d-icon">🔄</div><div class="d-title">Taking a Turn</div><div class="r-block"><div class="r-label">1 — Draw</div><div class="r-body">Take the top card from the draw pile, or take the <strong>entire discard pile</strong> (must immediately use top card in a new meld).</div></div><div class="r-block"><div class="r-label">2 — Meld</div><div class="r-body">Lay down <strong>sets</strong> or <strong>sequences</strong>, and/or add to existing melds.</div></div><div class="r-block"><div class="r-label">3 — Discard</div><div class="r-body">End your turn placing one card face-up on the discard pile. You cannot discard a Joker.</div></div>`},
+  {id:'deal',icon:'🃏',name:'Setup & Deal',desc:'Starting a round',html:`<div class="d-icon">🃏</div><div class="d-title">Setup & Deal</div><div class="r-block"><div class="r-label">Decks</div><div class="r-body">Use <strong>2 standard 52-card decks</strong> (104 cards total). No jokers.</div></div><div class="r-block"><div class="r-label">Dealing</div><div class="r-body">Each player receives <strong>14 cards</strong>. Flip one card to start the discard pile.</div></div><div class="r-block"><div class="r-label">First player</div><div class="r-body">Player to the dealer's left goes first. Play is <strong>clockwise</strong>.</div></div>`},
+  {id:'turn',icon:'🔄',name:'Taking a Turn',desc:'Draw, meld, discard',html:`<div class="d-icon">🔄</div><div class="d-title">Taking a Turn</div><div class="r-block"><div class="r-label">1 — Draw</div><div class="r-body">Take the top card from the draw pile, or take the <strong>entire discard pile</strong> (must immediately use top card in a new meld).</div></div><div class="r-block"><div class="r-label">2 — Meld</div><div class="r-body">Lay down <strong>sets</strong> or <strong>sequences</strong>, and/or add to existing melds.</div></div><div class="r-block"><div class="r-label">3 — Discard</div><div class="r-body">End your turn by placing one card face-up on the discard pile.</div></div>`},
   {id:'melds',icon:'🤝',name:'Melds',desc:'Sets & sequences',html:`<div class="d-icon">🤝</div><div class="d-title">Melds</div><div class="r-block"><div class="r-label">Set</div><div class="r-body">3+ cards of the <strong>same rank</strong>, different suits.<br>Example: <span class="rtag">7♠</span> <span class="rtag">7♥</span> <span class="rtag">7♣</span></div></div><div class="r-block"><div class="r-label">Sequence</div><div class="r-body">3+ cards of the <strong>same suit</strong> in order.<br>Example: <span class="rtag">4♥</span> <span class="rtag">5♥</span> <span class="rtag">6♥</span></div></div><div class="r-block"><div class="r-label">First meld rule</div><div class="r-body">Your first meld must total at least <span class="rtag">51 points</span>.</div></div>`},
-  {id:'score',icon:'🔢',name:'Scoring',desc:'Positive & penalty values',html:`<div class="d-icon">🔢</div><div class="d-title">Scoring</div><div class="r-block"><div class="r-label">Melded cards (positive)</div><div class="cv-tbl"><div class="cv-row"><div class="cv-c hd">Card</div><div class="cv-c hd">Points</div></div><div class="cv-row"><div class="cv-c">Ace high (Q–K–A)</div><div class="cv-c">+15</div></div><div class="cv-row"><div class="cv-c">Ace low (A–2–3)</div><div class="cv-c">+5</div></div><div class="cv-row"><div class="cv-c">J, Q, K, 10</div><div class="cv-c">+10</div></div><div class="cv-row"><div class="cv-c">2–9, Joker</div><div class="cv-c">+5</div></div></div></div><div class="r-block"><div class="r-label">Hand cards (penalty)</div><div class="cv-tbl"><div class="cv-row"><div class="cv-c hd">Card</div><div class="cv-c hd">Penalty</div></div><div class="cv-row"><div class="cv-c">Ace</div><div class="cv-c">−15</div></div><div class="cv-row"><div class="cv-c">J, Q, K, 10</div><div class="cv-c">−10</div></div><div class="cv-row"><div class="cv-c">2–9, Joker</div><div class="cv-c">−5</div></div></div></div>`},
-  {id:'jokers',icon:'🌟',name:'Jokers',desc:'Wild card rules',html:`<div class="d-icon">🌟</div><div class="d-title">Jokers (Wild Cards)</div><div class="r-block"><div class="r-label">How they work</div><div class="r-body">A Joker is <strong>wild</strong> and substitutes for any card. A meld may have <strong>at most one Joker</strong>.</div></div><div class="r-block"><div class="r-label">Stealing</div><div class="r-body">Replace a tabled Joker with the exact natural card it represents to take it.</div></div><div class="r-block"><div class="r-label">Penalty</div><div class="r-body">Joker in hand = <span class="rtag r">−5 pts</span>. You may not discard a Joker.</div></div>`},
+  {id:'score',icon:'🔢',name:'Scoring',desc:'Positive & penalty values',html:`<div class="d-icon">🔢</div><div class="d-title">Scoring</div><div class="r-block"><div class="r-label">Melded cards (positive)</div><div class="cv-tbl"><div class="cv-row"><div class="cv-c hd">Card</div><div class="cv-c hd">Points</div></div><div class="cv-row"><div class="cv-c">Ace high (Q–K–A)</div><div class="cv-c">+15</div></div><div class="cv-row"><div class="cv-c">Ace low (A–2–3)</div><div class="cv-c">+5</div></div><div class="cv-row"><div class="cv-c">J, Q, K, 10</div><div class="cv-c">+10</div></div><div class="cv-row"><div class="cv-c">2–9</div><div class="cv-c">+5</div></div></div></div><div class="r-block"><div class="r-label">Hand cards (penalty)</div><div class="cv-tbl"><div class="cv-row"><div class="cv-c hd">Card</div><div class="cv-c hd">Penalty</div></div><div class="cv-row"><div class="cv-c">Ace</div><div class="cv-c">−15</div></div><div class="cv-row"><div class="cv-c">J, Q, K, 10</div><div class="cv-c">−10</div></div><div class="cv-row"><div class="cv-c">2–9</div><div class="cv-c">−5</div></div></div></div>`},
   {id:'out',icon:'🚪',name:'Going Out',desc:'Ending a round',html:`<div class="d-icon">🚪</div><div class="d-title">Going Out</div><div class="r-block"><div class="r-label">How</div><div class="r-body">Play all cards from your hand by melding/extending. Your last card is discarded or added to a meld.</div></div><div class="r-block"><div class="r-label">Remi!</div><div class="r-body">Meld all cards in a <strong>single turn</strong> with no prior melds — all others take <span class="rtag r">double penalties</span>.</div></div>`},
   {id:'special',icon:'⭐',name:'Special Rules',desc:'Edge cases & tips',html:`<div class="d-icon">⭐</div><div class="d-title">Special Rules</div><div class="r-block"><div class="r-label">Empty draw pile</div><div class="r-body">Shuffle the discard pile (except top card) to form a new draw pile.</div></div><div class="r-block"><div class="r-label">Ace</div><div class="r-body">High (Q–K–A) = <span class="rtag g">+15</span>, low (A–2–3) = <span class="rtag g">+5</span>. No wrap-around. Always <span class="rtag r">−15</span> in hand.</div></div>`},
 ];
@@ -12,6 +11,7 @@ const RULES = [
 // ── State ──────────────────────────────────────────────────────────────────
 let sb = null;
 let adminCode = 'asaf';
+let supportEmail = '';
 let currentUser = null;   // auth.users row
 let userProfile = null;   // profiles row (includes player_id)
 
@@ -34,7 +34,13 @@ function getSupabase() {
   if (!supabaseUrl || supabaseUrl.includes('PASTE_YOUR')) {
     throw new Error('Add your Supabase URL and anon key to APP_CONFIG in index.html');
   }
-  sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+  sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    }
+  });
   return sb;
 }
 
@@ -172,9 +178,21 @@ async function loadHistory() {
 async function loadAppSettings() {
   try {
     const client = getSupabase();
-    const { data } = await client.from('app_settings').select('admin_code').single();
+    const { data } = await client.from('app_settings').select('admin_code, support_email').single();
     if (data?.admin_code) adminCode = data.admin_code.toLowerCase();
+    if (data?.support_email) { supportEmail = data.support_email; renderFeedbackLink(); }
   } catch (e) {}
+}
+
+function renderFeedbackLink() {
+  const el = document.getElementById('feedback-link');
+  if (!el) return;
+  if (supportEmail) {
+    el.href = `mailto:${supportEmail}?subject=Train Rummy feedback`;
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 async function loadPlayerRoster() {
@@ -378,10 +396,11 @@ function renderScoreboard() {
       s === null ? '' : `<span class="chip ${s > 0 ? 'pos' : s < 0 ? 'neg' : ''}">${s > 0 ? '+' + s : s}</span>`
     ).join(' ');
     const d = document.createElement('div');
-    d.className = 'p-row' + (rank === 0 ? ' leader' : '');
+    const isLeader = rank === 0 && rounds.length > 0;
+    d.className = 'p-row' + (isLeader ? ' leader' : '');
     d.innerHTML = `<div class="p-rank">${rank + 1}</div>
       <div class="p-info">
-        <div class="p-name">${p.name}${rank === 0 ? ' 👑' : ''}</div>
+        <div class="p-name">${p.name}${isLeader ? ' 👑' : ''}</div>
         <div class="p-chips">${chips || '<span style="color:var(--text-4)">—</span>'}</div>
       </div>
       <div class="p-total">${p.total}</div>`;
@@ -394,7 +413,7 @@ function renderEntries() {
   players.forEach((p, i) => {
     const d = document.createElement('div'); d.className = 'e-card';
     d.innerHTML = `<div class="e-name">${p.name}</div>
-      <input class="e-inp" type="number" id="e${i}" placeholder="0" inputmode="numeric" autocomplete="off">`;
+      <input class="e-inp" type="number" id="e${i}" placeholder="0" inputmode="decimal" autocomplete="off">`;
     c.appendChild(d);
     setTimeout(() => {
       const inp = document.getElementById('e' + i);
@@ -410,32 +429,18 @@ function renderEntries() {
       }
     }, 0);
   });
-  renderHelpers();
-}
-
-function renderHelpers() {
-  const PENS = [
-    { label: 'A −15', val: -15 }, { label: 'J/Q/K −10', val: -10 }, { label: '2–9 −5', val: -5 },
-    { label: '+5', val: 5 }, { label: '+10', val: 10 }, { label: '+15', val: 15 }
-  ];
-  const row = document.getElementById('helper-row'); row.innerHTML = '';
-  PENS.forEach(p => {
-    const btn = document.createElement('button'); btn.className = 'helper-chip'; btn.textContent = p.label;
-    btn.onclick = () => applyPenalty(p.val); row.appendChild(btn);
-  });
-}
-
-function applyPenalty(val) {
-  if (focusedPlayer === null) { showToast('Tap a score field first'); return; }
-  const inp = document.getElementById('e' + focusedPlayer);
-  if (!inp) return;
-  inp.value = (parseInt(inp.value) || 0) + val; inp.focus();
 }
 
 async function submitRound() {
   const client = getSupabase();
   const roundNum = rounds.length + 1;
   const scores = players.map((_, i) => parseInt(document.getElementById('e' + i)?.value) || 0);
+
+  const bad = scores.map((s, i) => s % 5 !== 0 ? players[i].name : null).filter(Boolean);
+  if (bad.length) {
+    showToast(`Scores must be divisible by 5 (${bad.join(', ')})`, 3500);
+    return;
+  }
 
   const inserts = players.map((p, i) => ({
     game_id: currentGameId,
@@ -849,6 +854,20 @@ function openAdmin() {
   document.getElementById('admin-overlay').style.display = 'flex';
 }
 function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
+
+async function saveAdminSupportEmail() {
+  const inp = document.getElementById('admin-support-email');
+  const msg = document.getElementById('admin-support-email-msg');
+  const email = inp.value.trim();
+  const { error } = await getSupabase().from('app_settings').update({ support_email: email }).neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) {
+    msg.textContent = 'Could not save.'; msg.style.color = 'var(--red)'; msg.style.display = 'block';
+  } else {
+    supportEmail = email; renderFeedbackLink();
+    msg.textContent = 'Saved!'; msg.style.color = 'var(--green)'; msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  }
+}
 function maybeCloseAdmin(e) { if (e.target === document.getElementById('admin-overlay')) closeAdmin(); }
 async function checkAdminAuth() {
   const val = document.getElementById('admin-code-inp').value.trim().toLowerCase();
@@ -862,6 +881,9 @@ async function checkAdminAuth() {
 }
 
 async function loadAdminData() {
+  // Pre-fill support email field
+  const emailInp = document.getElementById('admin-support-email');
+  if (emailInp) emailInp.value = supportEmail;
   await Promise.all([renderAdminGroups(), renderAdminPlayers(), renderAdminHistory()]);
 }
 
@@ -1247,10 +1269,10 @@ async function adminResetStats() {
 
 // ── Toast ──────────────────────────────────────────────────────────────────
 
-function showToast(msg) {
+function showToast(msg, duration = 2200) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  setTimeout(() => t.classList.remove('show'), duration);
 }
 
 // ── Groups ──────────────────────────────────────────────────────────────────
@@ -1582,18 +1604,40 @@ function timeAgo(isoString) {
 async function loadMyActiveGames() {
   const section = document.getElementById('my-games-section');
   const list = document.getElementById('my-games-list');
-  if (!currentUser || !userProfile?.player_id || !currentGroup) { section.style.display = 'none'; return; }
+  const toggleWrap = document.getElementById('group-games-toggle-wrap');
+  const toggleTrack = document.getElementById('group-games-toggle');
+  if (!currentUser || !userProfile?.player_id || !currentGroup) {
+    section.style.display = 'none';
+    if (toggleWrap) toggleWrap.style.display = 'none';
+    return;
+  }
+
+  const showAll = !!userProfile?.show_group_games;
+  if (toggleWrap) toggleWrap.style.display = 'flex';  // always visible when in a group
+  if (toggleTrack) toggleTrack.className = 'toggle-track' + (showAll ? ' on' : '');
+  if (!showAll && !userProfile?.player_id) { section.style.display = 'none'; return; }
 
   const client = getSupabase();
-  const { data: joined } = await client
-    .from('game_players')
-    .select('game_id, game_rooms(id, room_code, status, updated_at, group_id)')
-    .eq('player_id', userProfile.player_id);
+  let active;
 
-  const active = (joined || [])
-    .map(j => j.game_rooms)
-    .filter(r => r && r.status === 'active' && r.group_id === currentGroup.id)
-    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  if (showAll) {
+    const { data: rooms } = await client
+      .from('game_rooms')
+      .select('id, room_code, status, updated_at, group_id')
+      .eq('group_id', currentGroup.id)
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false });
+    active = rooms || [];
+  } else {
+    const { data: joined } = await client
+      .from('game_players')
+      .select('game_id, game_rooms(id, room_code, status, updated_at, group_id)')
+      .eq('player_id', userProfile.player_id);
+    active = (joined || [])
+      .map(j => j.game_rooms)
+      .filter(r => r && r.status === 'active' && r.group_id === currentGroup.id)
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  }
 
   if (!active.length) { section.style.display = 'none'; return; }
 
@@ -1626,6 +1670,14 @@ async function loadMyActiveGames() {
   });
 
   section.style.display = 'block';
+}
+
+async function toggleShowGroupGames() {
+  if (!currentUser || !userProfile) return;
+  const newVal = !userProfile.show_group_games;
+  userProfile.show_group_games = newVal;
+  getSupabase().from('profiles').update({ show_group_games: newVal }).eq('id', currentUser.id).then(() => {});
+  await loadMyActiveGames();
 }
 
 async function resumeGame(code) {
@@ -1674,7 +1726,7 @@ async function loadUserProfile() {
     if (currentUser) {
       const { data } = await client
         .from('profiles')
-        .select('id, player_id, last_group_id, players(display_name)')
+        .select('id, player_id, last_group_id, show_group_games, players(display_name)')
         .eq('id', currentUser.id)
         .maybeSingle();
       userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
@@ -1692,33 +1744,37 @@ async function loadUserProfile() {
 
 // Auth sheet (magic link)
 function openAuthSheet() {
-  document.getElementById('auth-email').value = '';
-  setAuthMsg('', '');
+  resetAuthSheet();
   document.getElementById('auth-overlay').style.display = 'flex';
   setTimeout(() => document.getElementById('auth-email').focus(), 100);
 }
 function closeAuthSheet() { document.getElementById('auth-overlay').style.display = 'none'; }
 function maybeCloseAuth(e) { if (e.target === document.getElementById('auth-overlay')) closeAuthSheet(); }
 
-function setAuthMsg(msg, color) {
-  const el = document.getElementById('auth-msg');
-  el.textContent = msg;
-  el.style.color = color === 'error' ? 'var(--red)' : color === 'success' ? 'var(--green)' : 'var(--text-3)';
-  el.style.display = msg ? 'block' : 'none';
+function resetAuthSheet() {
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-error').style.display = 'none';
+  document.getElementById('auth-entry').style.display = 'flex';
+  document.getElementById('auth-sent').style.display = 'none';
+  setTimeout(() => document.getElementById('auth-email').focus(), 100);
 }
 
 async function sendMagicLink() {
   const email = document.getElementById('auth-email').value.trim();
-  if (!email) { setAuthMsg('Enter your email first.', 'error'); return; }
+  const errEl = document.getElementById('auth-error');
+  if (!email) { errEl.textContent = 'Enter your email first.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
   try {
-    setAuthMsg('Sending link…', '');
     const client = getSupabase();
     const redirectTo = window.location.origin + window.location.pathname;
     const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
     if (error) throw error;
-    setAuthMsg(`Link sent to ${email} — check your inbox.`, 'success');
+    document.getElementById('auth-sent-email').textContent = email;
+    document.getElementById('auth-entry').style.display = 'none';
+    document.getElementById('auth-sent').style.display = 'flex';
   } catch (e) {
-    setAuthMsg(e.message || 'Could not send link', 'error');
+    errEl.textContent = e.message || 'Could not send link';
+    errEl.style.display = 'block';
   }
 }
 
@@ -1775,13 +1831,37 @@ async function identityCreateNew() {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
+// Handle Supabase error redirects (e.g. expired magic link) before anything else
+(function handleAuthError() {
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('error');
+  const desc = params.get('error_description');
+  if (err) {
+    history.replaceState(null, '', window.location.pathname);
+    const msg = err === 'access_denied' && desc?.includes('expired')
+      ? 'That sign-in link has expired — please request a new one.'
+      : (desc?.replace(/\+/g, ' ') || 'Sign-in failed. Please try again.');
+    // Show toast after DOM is ready
+    setTimeout(() => { showToast(msg, 5000); openAuthSheet(); }, 300);
+  }
+})();
+
 buildTopics();
 loadAppSettings();
 loadPlayerRoster();
 maybeHandleJoinLink();
 
+// Fallback: if onAuthStateChange never fires within 5s, unblock the UI
+const _authFallbackTimer = setTimeout(() => {
+  if (document.getElementById('profile-loading').style.display !== 'none') {
+    currentUser = null; userProfile = null;
+    renderProfileBar();
+  }
+}, 5000);
+
 // Auth state listener — fires on page load (existing session) and on magic link callback
 getSupabase().auth.onAuthStateChange(async (event, session) => {
+  clearTimeout(_authFallbackTimer);
   try {
     currentUser = session?.user || null;
     userProfile = null;
@@ -1789,7 +1869,7 @@ getSupabase().auth.onAuthStateChange(async (event, session) => {
     if (currentUser) {
       const { data } = await getSupabase()
         .from('profiles')
-        .select('id, player_id, last_group_id, players(display_name)')
+        .select('id, player_id, last_group_id, show_group_games, players(display_name)')
         .eq('id', currentUser.id)
         .maybeSingle();
       userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
@@ -1797,6 +1877,11 @@ getSupabase().auth.onAuthStateChange(async (event, session) => {
     renderProfileBar();
 
     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      // Strip magic-link token from URL hash so a refresh doesn't re-process it,
+      // but leave query params intact (join links use ?join=CODE)
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
       closeAuthSheet();
       if (currentUser && !userProfile?.player_id) {
         openIdentityPicker();
