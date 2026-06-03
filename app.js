@@ -39,10 +39,15 @@ function saveSession() {
   sessionStorage.setItem('tr_session', JSON.stringify({
     room: currentRoom, gameId: currentGameId, password: currentPassword
   }));
+  // Keep ?room= in the URL so the link is shareable
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', currentRoom);
+  history.replaceState(null, '', url.toString());
 }
 
 function clearSession() {
   sessionStorage.removeItem('tr_session');
+  history.replaceState(null, '', window.location.pathname);
 }
 
 async function maybeRestoreSession() {
@@ -490,12 +495,14 @@ function renderEntries() {
       <div class="e-inp-row">
         <button class="e-sign-btn" id="esign${i}" type="button" onclick="toggleSign(${i})">+</button>
         <input class="e-inp" type="text" id="e${i}" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="none">
-      </div>`;
+      </div>
+      <div class="e-hint" id="ehint${i}"></div>`;
     c.appendChild(d);
     setTimeout(() => {
       const inp = document.getElementById('e' + i);
       if (inp) {
-        inp.addEventListener('focus', () => focusedPlayer = i);
+        inp.addEventListener('focus', () => { focusedPlayer = i; clearEntryError(i); });
+        inp.addEventListener('blur', () => validateEntry(i));
         inp.addEventListener('keydown', e => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -515,6 +522,27 @@ function toggleSign(i) {
   const isNeg = btn.classList.toggle('neg');
   btn.textContent = isNeg ? '−' : '+';
   inp.classList.toggle('neg', isNeg);
+}
+
+function validateEntry(i) {
+  const inp = document.getElementById('e' + i);
+  const hint = document.getElementById('ehint' + i);
+  if (!inp || !hint) return;
+  const raw = inp.value.trim();
+  if (!raw) { clearEntryError(i); return; }
+  const val = parseInt(raw);
+  if (isNaN(val) || val % 5 !== 0) {
+    inp.classList.add('invalid');
+    hint.textContent = 'Must be a multiple of 5';
+  } else {
+    clearEntryError(i);
+  }
+}
+
+function clearEntryError(i) {
+  document.getElementById('e' + i)?.classList.remove('invalid');
+  const hint = document.getElementById('ehint' + i);
+  if (hint) hint.textContent = '';
 }
 
 async function submitRound() {
@@ -548,6 +576,7 @@ async function submitRound() {
     if (inp) { inp.value = ''; inp.classList.remove('neg'); }
     const btn = document.getElementById('esign' + i);
     if (btn) { btn.classList.remove('neg'); btn.textContent = '+'; }
+    clearEntryError(i);
   });
   focusedPlayer = null;
   window.scrollTo({ top: 0, behavior: 'smooth' }); setSyncDot(true);
@@ -1174,6 +1203,18 @@ async function adminResetStats() {
 
 // ── Toast ──────────────────────────────────────────────────────────────────
 
+function shareRoom() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', currentRoom);
+  const link = url.toString();
+  if (navigator.share) {
+    navigator.share({ title: 'Join Train Rummy', text: `Room: ${currentRoom}`, url: link }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(link).then(() => showToast('Link copied!'))
+      .catch(() => { showToast(link, 4000); });
+  }
+}
+
 function showToast(msg, duration = 2200) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -1185,4 +1226,20 @@ function showToast(msg, duration = 2200) {
 buildTopics();
 loadAppSettings();
 loadPlayerRoster();
+
+// If ?room=CODE is in the URL and we're not restoring an existing session,
+// pre-fill the code and prompt for the password
+(function maybeHandleRoomLink() {
+  const code = new URLSearchParams(window.location.search).get('room');
+  if (!code) return;
+  // If sessionStorage already has this room, maybeRestoreSession handles it
+  try {
+    const cached = JSON.parse(sessionStorage.getItem('tr_session') || '{}');
+    if (cached.room === code.toUpperCase()) return;
+  } catch (e) {}
+  // Pre-fill join fields and open password prompt
+  document.getElementById('join-code').value = code.toUpperCase();
+  openPasswordPrompt(code.toUpperCase());
+})();
+
 maybeRestoreSession();
