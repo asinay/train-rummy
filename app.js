@@ -12,20 +12,13 @@ const RULES = [
 let sb = null;
 let adminCode = 'asaf';
 let supportEmail = '';
-let currentUser = null;   // auth.users row
-let userProfile = null;   // profiles row (includes player_id)
-
 
 // players = [{id, name, total}] for current game
-// playerRecords = [{id, display_name}] — scoped to current group when a group is selected
-// allPlayerRecords = [{id, display_name}] — full global roster, used for identity picker
-let players = [], playerRecords = [], allPlayerRecords = [], rounds = [];
+// playerRecords = [{id, display_name}] — full global roster
+let players = [], playerRecords = [], rounds = [];
 let panelOpen = true, focusedPlayer = null;
-let currentRoom = null, currentGameId = null, syncInterval = null, lastSyncTime = 0;
-
-// Group state
-let currentGroup = null;   // {id, name, join_code, members:[{player_id, display_name}]}
-let myGroups = [];          // all groups this user's player is in
+let currentRoom = null, currentGameId = null, currentPassword = null;
+let syncInterval = null, lastSyncTime = 0;
 
 // ── Supabase ───────────────────────────────────────────────────────────────
 function getSupabase() {
@@ -35,16 +28,46 @@ function getSupabase() {
     throw new Error('Add your Supabase URL and anon key to APP_CONFIG in index.html');
   }
   sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    }
+    auth: { persistSession: false }
   });
   return sb;
 }
 
-// ── Storage: four surgical replacements ───────────────────────────────────
+// ── Session persistence (survive refresh) ─────────────────────────────────
+function saveSession() {
+  if (!currentRoom || !currentGameId || !currentPassword) return;
+  sessionStorage.setItem('tr_session', JSON.stringify({
+    room: currentRoom, gameId: currentGameId, password: currentPassword
+  }));
+}
+
+function clearSession() {
+  sessionStorage.removeItem('tr_session');
+}
+
+async function maybeRestoreSession() {
+  try {
+    const raw = sessionStorage.getItem('tr_session');
+    if (!raw) return;
+    const { room, gameId, password } = JSON.parse(raw);
+    if (!room || !gameId || !password) return;
+
+    showToast('Resuming game…');
+    const state = await loadGameState(room);
+    if (!state) { clearSession(); return; }
+
+    currentRoom = room;
+    currentGameId = gameId;
+    currentPassword = password;
+    players = state.players;
+    rounds = state.rounds;
+    setGameEnded(false); startSync(); showScreen('game'); render();
+  } catch (e) {
+    clearSession();
+  }
+}
+
+// ── Storage ────────────────────────────────────────────────────────────────
 
 async function saveGameState() {
   if (!currentGameId) return;
@@ -135,25 +158,20 @@ async function saveGameToHistory(winner, finalPlayers, numRounds) {
     winner_score: winner.total,
     rounds_count: numRounds,
     player_names: finalPlayers.map(p => p.name),
-    legs_json: legSummaries,
-    group_id: currentGroup?.id || null
+    legs_json: legSummaries
   });
   if (histError) console.warn('game_history insert:', histError.message);
 
   if (currentGameId) {
-    const { error: roomError } = await client.from('game_rooms').update({ status: 'ended' }).eq('id', currentGameId);
-    if (roomError) console.warn('game_rooms update:', roomError.message);
+    await client.from('game_rooms').update({ status: 'ended' }).eq('id', currentGameId);
   }
 }
 
 async function loadHistory() {
   const client = getSupabase();
-  let query = client.from('game_history').select('*').order('played_at', { ascending: false });
-  if (currentGroup) query = query.eq('group_id', currentGroup.id);
-  const { data } = await query;
+  const { data } = await client.from('game_history').select('*').order('played_at', { ascending: false });
   return (data || []).map(g => {
     const legs = g.legs_json || [];
-    // Sum each player's score across all legs
     const playerTotals = {};
     legs.forEach(leg => {
       (leg.players || []).forEach(p => {
@@ -188,7 +206,7 @@ function renderFeedbackLink() {
   const el = document.getElementById('feedback-link');
   if (!el) return;
   if (supportEmail) {
-    el.href = `mailto:${supportEmail}?subject=Train Rummy feedback`;
+    el.onclick = () => { window.location.href = `mailto:${supportEmail}?subject=Train Rummy feedback`; };
     el.style.display = 'flex';
   } else {
     el.style.display = 'none';
@@ -203,7 +221,6 @@ async function loadPlayerRoster() {
       .eq('is_active', true)
       .order('sort_order');
     if (error) throw error;
-    allPlayerRecords = data || [];
     playerRecords = data || [];
     renderPlayerChips();
   } catch (e) {
@@ -215,22 +232,13 @@ async function loadPlayerRoster() {
 
 async function saveNewPlayerToRoster(name) {
   const client = getSupabase();
-  const maxOrder = allPlayerRecords.length ? allPlayerRecords.length + 1 : 1;
+  const maxOrder = playerRecords.length ? playerRecords.length + 1 : 1;
   const { data, error } = await client.from('players')
     .insert({ display_name: name, sort_order: maxOrder })
     .select('id, display_name')
     .single();
   if (error) throw error;
-  allPlayerRecords.push(data);
-  if (currentGroup) {
-    await client.from('group_members').insert({
-      group_id: currentGroup.id, player_id: data.id, sort_order: maxOrder
-    });
-    currentGroup.members.push(data);
-    // playerRecords IS currentGroup.members (same ref), so no separate push needed
-  } else {
-    playerRecords.push(data);
-  }
+  playerRecords.push(data);
   return data;
 }
 
@@ -277,7 +285,7 @@ function maybeCloseNewPlayer(e) { if (e.target === document.getElementById('newp
 async function saveNewPlayer() {
   const name = document.getElementById('new-player-inp').value.trim();
   if (!name) { showToast('Enter a name'); return; }
-  if (allPlayerRecords.some(p => p.display_name.toLowerCase() === name.toLowerCase())) {
+  if (playerRecords.some(p => p.display_name.toLowerCase() === name.toLowerCase())) {
     showToast('Player already exists'); return;
   }
   try {
@@ -309,19 +317,81 @@ function genRoomCode() {
 
 async function joinRoom() {
   const code = document.getElementById('join-code').value.trim().toUpperCase();
+  const password = document.getElementById('join-password').value.trim();
   if (!code) { showToast('Enter a room code'); return; }
+  if (!password) { showToast('Enter the room password'); return; }
+
   showToast('Joining…');
+  const client = getSupabase();
+
+  // Fetch room (including password) to validate
+  const { data: room } = await client.from('game_rooms')
+    .select('id, room_code, status, room_password')
+    .eq('room_code', code)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (!room) { showToast('Room not found'); return; }
+  if (room.room_password && room.room_password !== password) {
+    document.getElementById('join-password').value = '';
+    showToast('Wrong password — ask the host'); return;
+  }
+
+  const state = await loadGameState(code);
+  if (!state) { showToast('Room not found'); return; }
+
+  currentRoom = code;
+  currentGameId = room.id;
+  currentPassword = password;
+  players = state.players;
+  rounds = state.rounds;
+  saveSession();
+  setGameEnded(false); startSync(); showScreen('game'); render();
+}
+
+// Password prompt overlay (for resume-game flow if we ever need it)
+let _pendingJoinCode = null;
+function openPasswordPrompt(code) {
+  _pendingJoinCode = code;
+  document.getElementById('prompt-password').value = '';
+  document.getElementById('prompt-error').style.display = 'none';
+  document.getElementById('password-overlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('prompt-password').focus(), 100);
+}
+function closePasswordPrompt() {
+  document.getElementById('password-overlay').style.display = 'none';
+  _pendingJoinCode = null;
+}
+function maybeClosePasswordPrompt(e) {
+  if (e.target === document.getElementById('password-overlay')) closePasswordPrompt();
+}
+async function submitPasswordPrompt() {
+  const password = document.getElementById('prompt-password').value.trim();
+  if (!password) return;
+  const code = _pendingJoinCode;
+  closePasswordPrompt();
+
+  const client = getSupabase();
+  const { data: room } = await client.from('game_rooms')
+    .select('id, room_code, status, room_password')
+    .eq('room_code', code)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (!room) { showToast('Room not found'); return; }
+  if (room.room_password && room.room_password !== password) {
+    document.getElementById('prompt-error').style.display = 'block';
+    openPasswordPrompt(code); return;
+  }
+
   const state = await loadGameState(code);
   if (!state) { showToast('Room not found'); return; }
   currentRoom = code;
+  currentGameId = room.id;
+  currentPassword = password;
   players = state.players;
   rounds = state.rounds;
-
-  // find the game_id from DB
-  const { data: room } = await getSupabase().from('game_rooms')
-    .select('id').eq('room_code', code).single();
-  currentGameId = room?.id || null;
-
+  saveSession();
   setGameEnded(false); startSync(); showScreen('game'); render();
 }
 
@@ -358,15 +428,18 @@ function setSyncDot(fresh) {
 // ── Game ───────────────────────────────────────────────────────────────────
 
 async function startGame() {
-  if (!currentUser) { openAuthSheet(); showToast('Sign in to host a game'); return; }
   const selected = getSelectedPlayers();
   if (selected.length < 2) { showToast('Select at least 2 players'); return; }
 
+  const password = document.getElementById('start-password').value.trim();
+  if (!password) { showToast('Choose a room password'); return; }
+
   currentRoom = genRoomCode();
+  currentPassword = password;
   const client = getSupabase();
 
   const { data: room, error } = await client.from('game_rooms')
-    .insert({ room_code: currentRoom, status: 'active', created_by: currentUser.id, group_id: currentGroup?.id || null })
+    .insert({ room_code: currentRoom, status: 'active', room_password: password })
     .select('id')
     .single();
   if (error) { showToast('Could not create game'); return; }
@@ -378,6 +451,7 @@ async function startGame() {
 
   players = selected.map(p => ({ id: p.id, name: p.display_name, total: 0, joinedAtRound: 0 }));
   rounds = [];
+  saveSession();
   setGameEnded(false); startSync(); showScreen('game'); render();
 }
 
@@ -413,7 +487,10 @@ function renderEntries() {
   players.forEach((p, i) => {
     const d = document.createElement('div'); d.className = 'e-card';
     d.innerHTML = `<div class="e-name">${p.name}</div>
-      <input class="e-inp" type="number" id="e${i}" placeholder="0" inputmode="decimal" autocomplete="off">`;
+      <div class="e-inp-row">
+        <button class="e-sign-btn" id="esign${i}" type="button" onclick="toggleSign(${i})">+</button>
+        <input class="e-inp" type="text" id="e${i}" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="none">
+      </div>`;
     c.appendChild(d);
     setTimeout(() => {
       const inp = document.getElementById('e' + i);
@@ -431,10 +508,23 @@ function renderEntries() {
   });
 }
 
+function toggleSign(i) {
+  const btn = document.getElementById('esign' + i);
+  const inp = document.getElementById('e' + i);
+  if (!btn || !inp) return;
+  const isNeg = btn.classList.toggle('neg');
+  btn.textContent = isNeg ? '−' : '+';
+  inp.classList.toggle('neg', isNeg);
+}
+
 async function submitRound() {
   const client = getSupabase();
   const roundNum = rounds.length + 1;
-  const scores = players.map((_, i) => parseInt(document.getElementById('e' + i)?.value) || 0);
+  const scores = players.map((_, i) => {
+    const val = Math.abs(parseInt(document.getElementById('e' + i)?.value) || 0);
+    const neg = document.getElementById('esign' + i)?.classList.contains('neg');
+    return neg ? -val : val;
+  });
 
   const bad = scores.map((s, i) => s % 5 !== 0 ? players[i].name : null).filter(Boolean);
   if (bad.length) {
@@ -453,7 +543,12 @@ async function submitRound() {
   rounds.push(scores);
   players.forEach((p, i) => p.total += scores[i]);
   await saveGameState(); render();
-  players.forEach((_, i) => { const inp = document.getElementById('e' + i); if (inp) inp.value = ''; });
+  players.forEach((_, i) => {
+    const inp = document.getElementById('e' + i);
+    if (inp) { inp.value = ''; inp.classList.remove('neg'); }
+    const btn = document.getElementById('esign' + i);
+    if (btn) { btn.classList.remove('neg'); btn.textContent = '+'; }
+  });
   focusedPlayer = null;
   window.scrollTo({ top: 0, behavior: 'smooth' }); setSyncDot(true);
 }
@@ -555,13 +650,11 @@ async function confirmAddPlayers() {
   const existing = new Set(players.map(p => p.id));
   const toAdd = [];
 
-  // From roster chips
   document.querySelectorAll('#ap-chips .player-chip.selected').forEach(chip => {
     const rec = playerRecords.find(p => p.id === chip.dataset.id);
     if (rec && !existing.has(rec.id)) toAdd.push({ id: rec.id, name: rec.display_name });
   });
 
-  // From free-text inputs (new players)
   const newNames = [...document.querySelectorAll('#ap-new-list .player-inp')]
     .map(i => i.value.trim()).filter(Boolean);
   for (const name of newNames) {
@@ -633,6 +726,7 @@ async function endGame() {
   } catch (e) {
     console.error('saveGameToHistory failed:', e);
   }
+  clearSession();
   showWinner();
 }
 
@@ -675,7 +769,6 @@ function showWinner() {
     </div>`;
   });
 
-  // Collect leg winners (deduplicated for display)
   const legWinners = [...new Map(legs.map(leg => {
     const legRounds = rounds.slice(leg.start, leg.end);
     const activePlayers = players.map((p, pi) => ({ ...p, pi })).filter(p => legRounds.some(r => r[p.pi] !== null));
@@ -701,14 +794,18 @@ function showWinner() {
 
 function newGame() {
   if (syncInterval) clearInterval(syncInterval);
-  currentRoom = null; currentGameId = null; players = []; rounds = [];
+  const lastPassword = currentPassword;
+  currentRoom = null; currentGameId = null; currentPassword = null;
+  players = []; rounds = [];
   selectedPlayerIds.clear();
+  clearSession();
   setGameEnded(false);
   document.getElementById('join-code').value = '';
+  document.getElementById('join-password').value = '';
+  // Keep last password pre-filled so the same group can start another game without retyping
+  document.getElementById('start-password').value = lastPassword || '';
   showScreen('setup');
-  // Re-render group UI (will re-scope player chips to group)
-  renderGroupUI();
-  loadMyActiveGames();
+  loadPlayerRoster();
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────
@@ -727,7 +824,6 @@ async function renderStats() {
     return;
   }
 
-  // Build per-player stats — legs are the unit of winning
   const pmap = {};
   const ensure = name => {
     if (!pmap[name]) pmap[name] = { name, games: 0, legWins: 0, legsPlayed: 0, roundWins: 0, totalRounds: 0, totalScore: 0 };
@@ -854,6 +950,7 @@ function openAdmin() {
   document.getElementById('admin-overlay').style.display = 'flex';
 }
 function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
+function maybeCloseAdmin(e) { if (e.target === document.getElementById('admin-overlay')) closeAdmin(); }
 
 async function saveAdminSupportEmail() {
   const inp = document.getElementById('admin-support-email');
@@ -868,7 +965,7 @@ async function saveAdminSupportEmail() {
     setTimeout(() => { msg.style.display = 'none'; }, 2000);
   }
 }
-function maybeCloseAdmin(e) { if (e.target === document.getElementById('admin-overlay')) closeAdmin(); }
+
 async function checkAdminAuth() {
   const val = document.getElementById('admin-code-inp').value.trim().toLowerCase();
   if (val === adminCode) {
@@ -881,152 +978,9 @@ async function checkAdminAuth() {
 }
 
 async function loadAdminData() {
-  // Pre-fill support email field
   const emailInp = document.getElementById('admin-support-email');
   if (emailInp) emailInp.value = supportEmail;
-  await Promise.all([renderAdminGroups(), renderAdminPlayers(), renderAdminHistory()]);
-}
-
-async function renderAdminGroups() {
-  const el = document.getElementById('admin-groups-list');
-  const client = getSupabase();
-
-  const { data: groups } = await client
-    .from('groups')
-    .select('id, name, join_code, group_members(player_id, players(id, display_name))')
-    .order('name');
-
-  if (!groups?.length) { el.innerHTML = '<div class="chips-loading">No groups.</div>'; return; }
-
-  // Fetch all rooms with players for all groups in one query
-  const groupIds = groups.map(g => g.id);
-  const { data: rooms } = await client
-    .from('game_rooms')
-    .select('id, room_code, status, updated_at, group_id, game_players(player_id, players(id, display_name))')
-    .in('group_id', groupIds)
-    .order('updated_at', { ascending: false });
-
-  el.innerHTML = '';
-  groups.forEach(g => {
-    const groupMembers = (g.group_members || []).map(m => m.players).filter(Boolean);
-    const memberCount = groupMembers.length;
-    const groupRooms = (rooms || []).filter(r => r.group_id === g.id);
-
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'border:1.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:10px';
-
-    // Group header row
-    const header = document.createElement('div');
-    header.className = 'admin-item';
-    header.id = `admin-group-${g.id}`;
-    header.style.cssText = 'border:none;border-radius:0;margin-bottom:0;border-bottom:1px solid var(--border)';
-    header.innerHTML = `
-      <div class="admin-item-body">
-        <div class="admin-item-name">${g.name}</div>
-        <div class="admin-item-meta">${memberCount} member${memberCount !== 1 ? 's' : ''} · Code: ${g.join_code}</div>
-      </div>
-      <button class="admin-del-btn" onclick="adminDeleteGroup('${g.id}','${g.name.replace(/'/g,"\\'")}',this)">Delete</button>`;
-    wrap.appendChild(header);
-
-    // Members list
-    if (groupMembers.length) {
-      const membersSection = document.createElement('div');
-      membersSection.style.cssText = 'padding:8px 14px 4px;border-bottom:1px solid var(--border)';
-      const membersLabel = document.createElement('div');
-      membersLabel.style.cssText = 'font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text-4);text-transform:uppercase;margin-bottom:6px';
-      membersLabel.textContent = 'Members';
-      membersSection.appendChild(membersLabel);
-      groupMembers.forEach(p => {
-        const mrow = document.createElement('div');
-        mrow.id = `admin-group-member-${g.id}-${p.id}`;
-        mrow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--card2);border-radius:8px;padding:5px 10px;margin-bottom:5px';
-        mrow.innerHTML = `
-          <span style="font-size:13px;color:var(--text-2)">${p.display_name}</span>
-          <button class="admin-del-btn" style="height:26px;padding:0 8px;font-size:11px"
-                  onclick="adminRemoveGroupMember('${g.id}','${p.id}','${p.display_name.replace(/'/g,"\\'")}',this)">Remove</button>`;
-        membersSection.appendChild(mrow);
-      });
-      wrap.appendChild(membersSection);
-    }
-
-    // Rooms under this group
-    if (groupRooms.length) {
-      groupRooms.forEach(r => {
-        const date = new Date(r.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const statusBadge = r.status === 'active' ? ' 🟢' : ' ⚫';
-        const gamePlayers = (r.game_players || []).map(gp => gp.players).filter(Boolean);
-
-        const roomWrap = document.createElement('div');
-        roomWrap.id = `admin-room-${r.id}`;
-        roomWrap.style.cssText = 'border-bottom:1px solid var(--border);padding:10px 14px';
-
-        // Room header
-        const roomHeader = document.createElement('div');
-        roomHeader.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:6px';
-        roomHeader.innerHTML = `
-          <div style="flex:1;min-width:0">
-            <span style="font-size:13px;font-weight:700;color:var(--amber);letter-spacing:1px">${r.room_code}${statusBadge}</span>
-            <span style="font-size:12px;color:var(--text-4);margin-left:8px">${date}</span>
-          </div>
-          <button class="admin-del-btn" style="height:28px;padding:0 10px;font-size:12px"
-                  onclick="adminDeleteRoom('${r.id}','${r.room_code}',this)">Delete room</button>`;
-        roomWrap.appendChild(roomHeader);
-
-        // Players in room
-        gamePlayers.forEach(p => {
-          const prow = document.createElement('div');
-          prow.id = `admin-room-player-${r.id}-${p.id}`;
-          prow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--card2);border-radius:8px;padding:5px 10px;margin-bottom:4px';
-          prow.innerHTML = `
-            <span style="font-size:13px;color:var(--text-2)">${p.display_name}</span>
-            <button class="admin-del-btn" style="height:26px;padding:0 8px;font-size:11px"
-                    onclick="adminRemovePlayerFromRoom('${r.id}','${p.id}','${p.display_name.replace(/'/g,"\\'")}',this)">Remove</button>`;
-          roomWrap.appendChild(prow);
-        });
-
-        wrap.appendChild(roomWrap);
-      });
-    } else {
-      const empty = document.createElement('div');
-      empty.style.cssText = 'padding:10px 14px;font-size:12px;color:var(--text-4)';
-      empty.textContent = 'No game rooms yet.';
-      wrap.appendChild(empty);
-    }
-
-    el.appendChild(wrap);
-  });
-}
-
-async function adminDeleteGroup(groupId, groupName, btn) {
-  if (btn.dataset.confirm !== '1') {
-    btn.textContent = 'Sure?';
-    btn.dataset.confirm = '1';
-    setTimeout(() => { btn.textContent = 'Delete'; delete btn.dataset.confirm; }, 3000);
-    return;
-  }
-  const client = getSupabase();
-  const { error, count } = await client.from('groups').delete({ count: 'exact' }).eq('id', groupId);
-  if (error || count === 0) { showToast('Could not delete group'); btn.textContent = 'Delete'; delete btn.dataset.confirm; return; }
-  document.getElementById(`admin-group-${groupId}`)?.remove();
-  if (currentGroup?.id === groupId) { currentGroup = null; myGroups = []; renderGroupUI(); }
-  showToast(`"${groupName}" deleted`);
-}
-
-async function adminRemoveGroupMember(groupId, playerId, playerName, btn) {
-  if (btn.dataset.confirm !== '1') {
-    btn.textContent = 'Sure?';
-    btn.dataset.confirm = '1';
-    setTimeout(() => { btn.textContent = 'Remove'; delete btn.dataset.confirm; }, 3000);
-    return;
-  }
-  const client = getSupabase();
-  const { error, count } = await client.from('group_members')
-    .delete({ count: 'exact' })
-    .eq('group_id', groupId)
-    .eq('player_id', playerId);
-  if (error || count === 0) { showToast('Could not remove player'); btn.textContent = 'Remove'; delete btn.dataset.confirm; return; }
-  document.getElementById(`admin-group-member-${groupId}-${playerId}`)?.remove();
-  showToast(`${playerName} removed from group`);
+  await Promise.all([renderAdminPlayers(), renderAdminRooms(), renderAdminHistory()]);
 }
 
 async function renderAdminPlayers() {
@@ -1087,31 +1041,19 @@ async function adminDeletePlayer(playerId, playerName, btn) {
     return;
   }
   const client = getSupabase();
-  // Remove from game_history: delete entries where this is the only player,
-  // and scrub their name from player_names array in mixed-player games
-  const { data: allHistory } = await client
-    .from('game_history')
-    .select('id, player_names, winner_name');
-
+  const { data: allHistory } = await client.from('game_history').select('id, player_names, winner_name');
   for (const h of allHistory || []) {
     const names = h.player_names || [];
     if (names.length <= 1 && h.winner_name === playerName) {
       await client.from('game_history').delete().eq('id', h.id);
     } else if (names.includes(playerName)) {
-      await client.from('game_history')
-        .update({ player_names: names.filter(n => n !== playerName) })
-        .eq('id', h.id);
+      await client.from('game_history').update({ player_names: names.filter(n => n !== playerName) }).eq('id', h.id);
     }
   }
-
-  // Deleting the player cascades to game_players, group_members, profiles.player_id (set null)
   const { error, count } = await client.from('players').delete({ count: 'exact' }).eq('id', playerId);
   if (error || count === 0) { showToast('Could not delete player'); btn.textContent = 'Delete'; delete btn.dataset.confirm; return; }
-
   document.getElementById(`admin-player-${playerId}`)?.remove();
-  allPlayerRecords = allPlayerRecords.filter(p => p.id !== playerId);
   playerRecords = playerRecords.filter(p => p.id !== playerId);
-  if (currentGroup) currentGroup.members = currentGroup.members.filter(p => p.id !== playerId);
   _cachedHistory = null;
   loadPlayerRoster();
   showToast(`${playerName} deleted`);
@@ -1122,7 +1064,7 @@ async function renderAdminRooms() {
   const client = getSupabase();
   const { data: rooms } = await client
     .from('game_rooms')
-    .select('id, room_code, status, updated_at, groups(name), game_players(player_id, players(id, display_name))')
+    .select('id, room_code, status, updated_at, game_players(player_id, players(id, display_name))')
     .order('updated_at', { ascending: false })
     .limit(50);
 
@@ -1130,7 +1072,6 @@ async function renderAdminRooms() {
 
   el.innerHTML = '';
   rooms.forEach(r => {
-    const groupName = r.groups?.name || 'No group';
     const date = new Date(r.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const statusBadge = r.status === 'active' ? ' 🟢' : '';
     const gamePlayers = (r.game_players || []).map(gp => gp.players).filter(Boolean);
@@ -1147,28 +1088,10 @@ async function renderAdminRooms() {
     header.innerHTML = `
       <div class="admin-item-body">
         <div class="admin-item-name">${r.room_code}${statusBadge}</div>
-        <div class="admin-item-meta">${groupName} · ${date}</div>
+        <div class="admin-item-meta">${date} · ${gamePlayers.map(p => p.display_name).join(', ')}</div>
       </div>
       <button class="admin-del-btn" onclick="adminDeleteRoom('${r.id}','${r.room_code}',this)">Delete</button>`;
     item.appendChild(header);
-
-    if (gamePlayers.length) {
-      const playerList = document.createElement('div');
-      playerList.id = `admin-room-players-${r.id}`;
-      playerList.style.cssText = 'display:flex;flex-direction:column;gap:5px;padding-left:4px';
-      gamePlayers.forEach(p => {
-        const prow = document.createElement('div');
-        prow.id = `admin-room-player-${r.id}-${p.id}`;
-        prow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--card2);border-radius:8px;padding:6px 10px';
-        prow.innerHTML = `
-          <span style="font-size:13px;color:var(--text-2)">${p.display_name}</span>
-          <button class="admin-del-btn" style="height:28px;padding:0 8px;font-size:11px"
-                  onclick="adminRemovePlayerFromRoom('${r.id}','${p.id}','${p.display_name.replace(/'/g,"\\'")}',this)">Remove</button>`;
-        playerList.appendChild(prow);
-      });
-      item.appendChild(playerList);
-    }
-
     el.appendChild(item);
   });
 }
@@ -1183,26 +1106,9 @@ async function adminDeleteRoom(roomId, roomCode, btn) {
   const client = getSupabase();
   const { error, count } = await client.from('game_rooms').delete({ count: 'exact' }).eq('id', roomId);
   if (error || count === 0) { showToast('Could not delete room'); btn.textContent = 'Delete'; delete btn.dataset.confirm; return; }
-  const roomEl = document.getElementById(`admin-room-${roomId}`);
-  roomEl?.remove();
-  if (currentGameId === roomId) { currentRoom = null; currentGameId = null; }
+  document.getElementById(`admin-room-${roomId}`)?.remove();
+  if (currentGameId === roomId) { currentRoom = null; currentGameId = null; clearSession(); }
   showToast(`${roomCode} deleted`);
-}
-
-async function adminRemovePlayerFromRoom(roomId, playerId, playerName, btn) {
-  if (btn.dataset.confirm !== '1') {
-    btn.textContent = 'Sure?';
-    btn.dataset.confirm = '1';
-    setTimeout(() => { btn.textContent = 'Remove'; delete btn.dataset.confirm; }, 3000);
-    return;
-  }
-  const client = getSupabase();
-  await client.from('round_scores').delete().eq('game_id', roomId).eq('player_id', playerId);
-  const { error, count } = await client.from('game_players').delete({ count: 'exact' })
-    .eq('game_id', roomId).eq('player_id', playerId);
-  if (error || count === 0) { showToast('Could not remove player'); btn.textContent = 'Remove'; delete btn.dataset.confirm; return; }
-  document.getElementById(`admin-room-player-${roomId}-${playerId}`)?.remove();
-  showToast(`${playerName} removed from room`);
 }
 
 async function renderAdminHistory() {
@@ -1210,7 +1116,7 @@ async function renderAdminHistory() {
   const client = getSupabase();
   const { data: history } = await client
     .from('game_history')
-    .select('id, room_code, winner_name, played_at, player_names, groups(name)')
+    .select('id, room_code, winner_name, played_at, player_names')
     .order('played_at', { ascending: false })
     .limit(30);
 
@@ -1219,14 +1125,13 @@ async function renderAdminHistory() {
   el.innerHTML = '';
   history.forEach(h => {
     const date = new Date(h.played_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const groupName = h.groups?.name || 'No group';
     const item = document.createElement('div');
     item.className = 'admin-item';
     item.id = `admin-hist-${h.id}`;
     item.innerHTML = `
       <div class="admin-item-body">
         <div class="admin-item-name">${h.winner_name} won · ${date}</div>
-        <div class="admin-item-meta">${groupName} · ${h.room_code} · ${(h.player_names || []).join(', ')}</div>
+        <div class="admin-item-meta">${h.room_code} · ${(h.player_names || []).join(', ')}</div>
       </div>
       <button class="admin-del-btn" onclick="adminDeleteHistory('${h.id}', this)">Delete</button>`;
     el.appendChild(item);
@@ -1275,625 +1180,9 @@ function showToast(msg, duration = 2200) {
   setTimeout(() => t.classList.remove('show'), duration);
 }
 
-// ── Groups ──────────────────────────────────────────────────────────────────
-
-async function loadMyGroups() {
-  myGroups = [];
-  if (!userProfile?.player_id) { renderGroupUI(); return; }
-
-  const client = getSupabase();
-  const { data: memberships } = await client
-    .from('group_members')
-    .select('group_id, groups(id, name, join_code)')
-    .eq('player_id', userProfile.player_id);
-
-  if (!memberships?.length) { renderGroupUI(); return; }
-
-  const groupIds = memberships.map(m => m.groups?.id).filter(Boolean);
-
-  // Fetch member counts + member names for each group
-  const { data: allMembers } = await client
-    .from('group_members')
-    .select('group_id, players(id, display_name)')
-    .in('group_id', groupIds)
-    .order('sort_order');
-
-  myGroups = memberships
-    .map(m => m.groups)
-    .filter(Boolean)
-    .map(g => ({
-      ...g,
-      members: (allMembers || [])
-        .filter(r => r.group_id === g.id)
-        .map(r => r.players)
-        .filter(Boolean)
-    }));
-
-  // Auto-select: restore last used group, or auto-select if only one
-  if (!currentGroup) {
-    const lastId = userProfile?.last_group_id;
-    const restored = lastId && myGroups.find(g => g.id === lastId);
-    if (restored) {
-      await selectGroup(restored, false);
-    } else if (myGroups.length === 1) {
-      await selectGroup(myGroups[0], false);
-    }
-  }
-
-  renderGroupUI();
-}
-
-async function selectGroup(group, persist = true) {
-  currentGroup = group;
-  if (persist && currentUser) {
-    getSupabase().from('profiles').update({ last_group_id: group.id }).eq('id', currentUser.id).then(() => {});
-    if (userProfile) userProfile.last_group_id = group.id;
-  }
-  // Reload player chips scoped to this group
-  renderGroupPlayerChips();
-  renderGroupUI();
-  await loadMyActiveGames();
-}
-
-function switchGroup() {
-  currentGroup = null;
-  renderGroupUI();
-}
-
-function renderGroupUI() {
-  const pickerSection = document.getElementById('group-picker-section');
-  const groupBar = document.getElementById('group-bar');
-  const gameSection = document.getElementById('game-section');
-  const loading = document.getElementById('profile-loading');
-
-  // Still waiting for auth — hide everything below profile bar
-  if (loading.style.display !== 'none') {
-    pickerSection.style.display = 'none';
-    groupBar.style.display = 'none';
-    gameSection.style.display = 'none';
-    return;
-  }
-
-  const signedIn = !!currentUser && !!userProfile?.player_id;
-
-  if (!signedIn) {
-    // Signed out: hide group UI entirely, show game section as before
-    pickerSection.style.display = 'none';
-    groupBar.style.display = 'none';
-    gameSection.style.display = 'block';
-    loadPlayerRoster();
-    return;
-  }
-
-  if (!currentGroup) {
-    // Signed in but no group selected: show picker
-    renderGroupPickerCards();
-    pickerSection.style.display = 'block';
-    groupBar.style.display = 'none';
-    gameSection.style.display = 'none';
-    return;
-  }
-
-  // Group selected: show bar + game section with group-scoped players
-  document.getElementById('group-bar-name').textContent = currentGroup.name;
-  pickerSection.style.display = 'none';
-  groupBar.style.display = 'block';
-  gameSection.style.display = 'block';
-}
-
-function renderGroupPickerCards() {
-  const list = document.getElementById('group-picker-list');
-  list.innerHTML = '';
-  if (!myGroups.length) {
-    list.innerHTML = '<div class="chips-loading">You\'re not in any groups yet.</div>';
-    return;
-  }
-  myGroups.forEach(g => {
-    const memberNames = g.members.map(m => m.display_name).join(', ');
-    const card = document.createElement('button');
-    card.className = 'group-picker-card';
-    card.innerHTML = `
-      <div class="group-picker-icon">👥</div>
-      <div class="group-picker-body">
-        <div class="group-picker-name">${g.name}</div>
-        <div class="group-picker-meta">${memberNames || 'No players yet'}</div>
-        <div class="group-picker-code">Code: ${g.join_code}</div>
-      </div>
-      <div class="group-picker-arrow">→</div>`;
-    card.onclick = () => selectGroup(g);
-    list.appendChild(card);
-  });
-}
-
-function renderGroupPlayerChips() {
-  if (!currentGroup) return;
-  // Scope playerRecords to group members + re-render chips
-  playerRecords = currentGroup.members;
-  renderPlayerChips();
-}
-
-// Invite sheet
-function openInviteSheet() {
-  if (!currentGroup) return;
-  document.getElementById('invite-sheet-title').textContent = `Invite to ${currentGroup.name}`;
-
-  // Roster chips — players not already in the group
-  const memberIds = new Set(currentGroup.members.map(m => m.id));
-  const notInGroup = allPlayerRecords.filter(p => !memberIds.has(p.id));
-  const chipsEl = document.getElementById('invite-roster-chips');
-  const emptyEl = document.getElementById('invite-roster-empty');
-  chipsEl.innerHTML = '';
-  if (notInGroup.length) {
-    emptyEl.style.display = 'none';
-    notInGroup.forEach(p => {
-      const chip = document.createElement('button');
-      chip.className = 'player-chip';
-      chip.textContent = p.display_name;
-      chip.onclick = () => addPlayerToGroup(p, chip);
-      chipsEl.appendChild(chip);
-    });
-  } else {
-    emptyEl.style.display = 'block';
-  }
-
-  // Invite link
-  const url = `${window.location.origin}${window.location.pathname}?join=${currentGroup.join_code}`;
-  document.getElementById('invite-link-inp').value = url;
-
-  // Show native share button only if supported
-  document.getElementById('invite-share-btn').style.display =
-    navigator.share ? 'flex' : 'none';
-
-  document.getElementById('invite-overlay').style.display = 'flex';
-}
-function closeInviteSheet() { document.getElementById('invite-overlay').style.display = 'none'; }
-function maybeCloseInviteSheet(e) { if (e.target === document.getElementById('invite-overlay')) closeInviteSheet(); }
-
-async function addPlayerToGroup(player, chip) {
-  const client = getSupabase();
-  const { error } = await client.from('group_members').insert({
-    group_id: currentGroup.id,
-    player_id: player.id,
-    sort_order: currentGroup.members.length + 1
-  });
-  if (error) { showToast('Could not add player'); return; }
-  currentGroup.members.push(player);
-  chip.classList.add('selected');
-  chip.disabled = true;
-  chip.textContent = player.display_name + ' ✓';
-  renderGroupPlayerChips();
-  showToast(`${player.display_name} added to ${currentGroup.name}`);
-}
-
-function copyInviteLink() {
-  const inp = document.getElementById('invite-link-inp');
-  navigator.clipboard.writeText(inp.value).then(() => showToast('Link copied!')).catch(() => {
-    inp.select(); document.execCommand('copy'); showToast('Link copied!');
-  });
-}
-
-async function shareInviteLink() {
-  const url = document.getElementById('invite-link-inp').value;
-  try {
-    await navigator.share({ title: `Join ${currentGroup.name} on Train Rummy`, url });
-  } catch (e) { /* user cancelled */ }
-}
-
-async function maybeHandlePendingJoin() {
-  const code = sessionStorage.getItem('pendingJoin');
-  if (!code) return;
-  sessionStorage.removeItem('pendingJoin');
-  const client = getSupabase();
-  const { data: group } = await client.from('groups')
-    .select('id, name, join_code').eq('join_code', code).maybeSingle();
-  if (group) await doJoinGroup(group);
-}
-
-// Deep-link: ?join=CODE — handle after auth + identity are established
-async function maybeHandleJoinLink() {
-  const code = new URLSearchParams(window.location.search).get('join');
-  if (!code) return;
-
-  const client = getSupabase();
-  const { data: group } = await client.from('groups')
-    .select('id, name, join_code')
-    .eq('join_code', code.toUpperCase())
-    .maybeSingle();
-  if (!group) return;
-
-  // Clean the URL so refreshing doesn't re-trigger
-  window.history.replaceState({}, '', window.location.pathname);
-
-  if (!currentUser || !userProfile?.player_id) {
-    // Not signed in — store pending join and prompt sign-in
-    sessionStorage.setItem('pendingJoin', code.toUpperCase());
-    showToast(`Sign in to join "${group.name}"`);
-    openAuthSheet();
-    return;
-  }
-
-  await doJoinGroup(group);
-}
-
-async function doJoinGroup(group) {
-  const client = getSupabase();
-  const { error } = await client.from('group_members')
-    .insert({ group_id: group.id, player_id: userProfile.player_id })
-    .select().maybeSingle();
-  if (error && !error.message.includes('unique')) {
-    showToast('Could not join group'); return;
-  }
-  showToast(`Joined "${group.name}"! 🚄`);
-  await loadMyGroups();
-  const joined = myGroups.find(g => g.id === group.id);
-  if (joined) await selectGroup(joined);
-}
-
-// Group overlay
-function openGroupSheet() {
-  document.getElementById('group-join-inp').value = '';
-  document.getElementById('group-name-inp').value = '';
-  setGroupMsg('join', '', '');
-  setGroupMsg('create', '', '');
-  document.getElementById('group-overlay').style.display = 'flex';
-}
-function closeGroupSheet() { document.getElementById('group-overlay').style.display = 'none'; }
-function maybeCloseGroupSheet(e) { if (e.target === document.getElementById('group-overlay')) closeGroupSheet(); }
-
-function setGroupMsg(type, msg, color) {
-  const el = document.getElementById(`group-${type}-msg`);
-  el.textContent = msg;
-  el.style.color = color === 'error' ? 'var(--red)' : 'var(--green)';
-  el.style.display = msg ? 'block' : 'none';
-}
-
-async function joinGroup() {
-  if (!currentUser || !userProfile?.player_id) { showToast('Sign in first'); return; }
-  const code = document.getElementById('group-join-inp').value.trim().toUpperCase();
-  if (!code) { setGroupMsg('join', 'Enter a group code', 'error'); return; }
-
-  const client = getSupabase();
-  const { data: group } = await client.from('groups').select('id, name, join_code').eq('join_code', code).maybeSingle();
-  if (!group) { setGroupMsg('join', 'Group not found — check the code', 'error'); return; }
-
-  const { error } = await client.from('group_members')
-    .insert({ group_id: group.id, player_id: userProfile.player_id })
-    .select().maybeSingle();
-  if (error && !error.message.includes('unique')) {
-    setGroupMsg('join', 'Could not join group', 'error'); return;
-  }
-
-  setGroupMsg('join', `Joined "${group.name}"!`, 'success');
-  setTimeout(async () => { closeGroupSheet(); await loadMyGroups(); }, 800);
-}
-
-async function createGroup() {
-  if (!currentUser || !userProfile?.player_id) { showToast('Sign in first'); return; }
-  const name = document.getElementById('group-name-inp').value.trim();
-  if (!name) { setGroupMsg('create', 'Enter a group name', 'error'); return; }
-
-  // Generate a unique 5-letter code
-  const words = ['NORTH','SOUTH','KINGS','UNION','GRAND','METRO','SWIFT','COAST','RIDGE','PLAZA'];
-  let joinCode = words[Math.floor(Math.random() * words.length)];
-  const client = getSupabase();
-
-  const { data: group, error } = await client.from('groups')
-    .insert({ name, join_code: joinCode, created_by: currentUser.id })
-    .select('id, name, join_code')
-    .single();
-  if (error) { setGroupMsg('create', 'Could not create group — try a different name', 'error'); return; }
-
-  await client.from('group_members').insert({ group_id: group.id, player_id: userProfile.player_id });
-
-  setGroupMsg('create', `Group created! Code: ${group.join_code}`, 'success');
-  setTimeout(async () => { closeGroupSheet(); await loadMyGroups(); }, 900);
-}
-
-// ── My active games ─────────────────────────────────────────────────────────
-
-function timeAgo(isoString) {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-async function loadMyActiveGames() {
-  const section = document.getElementById('my-games-section');
-  const list = document.getElementById('my-games-list');
-  const toggleWrap = document.getElementById('group-games-toggle-wrap');
-  const toggleTrack = document.getElementById('group-games-toggle');
-  if (!currentUser || !userProfile?.player_id || !currentGroup) {
-    section.style.display = 'none';
-    if (toggleWrap) toggleWrap.style.display = 'none';
-    return;
-  }
-
-  const showAll = !!userProfile?.show_group_games;
-  if (toggleWrap) toggleWrap.style.display = 'flex';  // always visible when in a group
-  if (toggleTrack) toggleTrack.className = 'toggle-track' + (showAll ? ' on' : '');
-  if (!showAll && !userProfile?.player_id) { section.style.display = 'none'; return; }
-
-  const client = getSupabase();
-  let active;
-
-  if (showAll) {
-    const { data: rooms } = await client
-      .from('game_rooms')
-      .select('id, room_code, status, updated_at, group_id')
-      .eq('group_id', currentGroup.id)
-      .eq('status', 'active')
-      .order('updated_at', { ascending: false });
-    active = rooms || [];
-  } else {
-    const { data: joined } = await client
-      .from('game_players')
-      .select('game_id, game_rooms(id, room_code, status, updated_at, group_id)')
-      .eq('player_id', userProfile.player_id);
-    active = (joined || [])
-      .map(j => j.game_rooms)
-      .filter(r => r && r.status === 'active' && r.group_id === currentGroup.id)
-      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-  }
-
-  if (!active.length) { section.style.display = 'none'; return; }
-
-  // For each room, fetch all players to display names
-  const gameIds = active.map(r => r.id);
-  const { data: gpRows } = await client
-    .from('game_players')
-    .select('game_id, players(display_name)')
-    .in('game_id', gameIds)
-    .order('sort_order');
-
-  list.innerHTML = '';
-  active.forEach(room => {
-    const roomPlayers = (gpRows || [])
-      .filter(r => r.game_id === room.id)
-      .map(r => r.players?.display_name)
-      .filter(Boolean);
-
-    const card = document.createElement('button');
-    card.className = 'my-game-card';
-    card.innerHTML = `
-      <div class="my-game-card-body">
-        <div class="my-game-code">${room.room_code}</div>
-        <div class="my-game-players">${roomPlayers.join(', ')}</div>
-        <div class="my-game-meta">Last activity ${timeAgo(room.updated_at)}</div>
-      </div>
-      <div class="my-game-arrow">→</div>`;
-    card.onclick = () => resumeGame(room.room_code);
-    list.appendChild(card);
-  });
-
-  section.style.display = 'block';
-}
-
-async function toggleShowGroupGames() {
-  if (!currentUser || !userProfile) return;
-  const newVal = !userProfile.show_group_games;
-  userProfile.show_group_games = newVal;
-  getSupabase().from('profiles').update({ show_group_games: newVal }).eq('id', currentUser.id).then(() => {});
-  await loadMyActiveGames();
-}
-
-async function resumeGame(code) {
-  showToast('Loading game…');
-  const state = await loadGameState(code);
-  if (!state) { showToast('Room not found or already ended'); loadMyActiveGames(); return; }
-  currentRoom = code;
-  players = state.players;
-  rounds = state.rounds;
-  const { data: room } = await getSupabase().from('game_rooms')
-    .select('id').eq('room_code', code).single();
-  currentGameId = room?.id || null;
-  setGameEnded(false); startSync(); showScreen('game'); render();
-}
-
-// ── Auth ───────────────────────────────────────────────────────────────────
-
-function renderProfileBar() {
-  document.getElementById('profile-loading').style.display = 'none';
-  const signedIn  = document.getElementById('profile-signed-in');
-  const signedOut = document.getElementById('profile-signed-out');
-  const nameEl    = document.getElementById('profile-name');
-
-  const startBtn = document.getElementById('start-btn');
-  if (currentUser) {
-    const label = userProfile?.player_name || currentUser.email;
-    nameEl.textContent = '👤 ' + label;
-    signedIn.style.display  = 'flex';
-    signedOut.style.display = 'none';
-    if (startBtn) startBtn.textContent = 'Start Game →';
-  } else {
-    signedIn.style.display  = 'none';
-    signedOut.style.display = 'flex';
-    if (startBtn) startBtn.textContent = 'Sign in to Start Game →';
-  }
-  loadMyGroups();
-}
-
-async function loadUserProfile() {
-  try {
-    const client = getSupabase();
-    const { data: { user } } = await client.auth.getUser();
-    currentUser = user || null;
-    userProfile = null;
-
-    if (currentUser) {
-      const { data } = await client
-        .from('profiles')
-        .select('id, player_id, last_group_id, show_group_games, players(display_name)')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-      userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
-    }
-    renderProfileBar();
-
-    // First sign-in with no identity linked → prompt picker
-    if (currentUser && userProfile && !userProfile.player_id) {
-      openIdentityPicker();
-    }
-  } catch (e) {
-    console.error('loadUserProfile failed:', e);
-  }
-}
-
-// Auth sheet (magic link)
-function openAuthSheet() {
-  resetAuthSheet();
-  document.getElementById('auth-overlay').style.display = 'flex';
-  setTimeout(() => document.getElementById('auth-email').focus(), 100);
-}
-function closeAuthSheet() { document.getElementById('auth-overlay').style.display = 'none'; }
-function maybeCloseAuth(e) { if (e.target === document.getElementById('auth-overlay')) closeAuthSheet(); }
-
-function resetAuthSheet() {
-  document.getElementById('auth-email').value = '';
-  document.getElementById('auth-error').style.display = 'none';
-  document.getElementById('auth-entry').style.display = 'flex';
-  document.getElementById('auth-sent').style.display = 'none';
-  setTimeout(() => document.getElementById('auth-email').focus(), 100);
-}
-
-async function sendMagicLink() {
-  const email = document.getElementById('auth-email').value.trim();
-  const errEl = document.getElementById('auth-error');
-  if (!email) { errEl.textContent = 'Enter your email first.'; errEl.style.display = 'block'; return; }
-  errEl.style.display = 'none';
-  try {
-    const client = getSupabase();
-    const redirectTo = window.location.origin + window.location.pathname;
-    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
-    if (error) throw error;
-    document.getElementById('auth-sent-email').textContent = email;
-    document.getElementById('auth-entry').style.display = 'none';
-    document.getElementById('auth-sent').style.display = 'flex';
-  } catch (e) {
-    errEl.textContent = e.message || 'Could not send link';
-    errEl.style.display = 'block';
-  }
-}
-
-async function signOut() {
-  const client = getSupabase();
-  await client.auth.signOut();
-  currentUser = null; userProfile = null; currentGroup = null; myGroups = [];
-  renderProfileBar();
-  showToast('Signed out');
-}
-
-// Identity picker
-function openIdentityPicker() {
-  const chips = document.getElementById('identity-chips');
-  chips.innerHTML = '';
-  document.getElementById('identity-new-inp').value = '';
-  allPlayerRecords.forEach(p => {
-    const chip = document.createElement('button');
-    chip.className = 'player-chip';
-    chip.textContent = p.display_name;
-    chip.onclick = () => identitySelect(p.id, p.display_name);
-    chips.appendChild(chip);
-  });
-  document.getElementById('identity-overlay').style.display = 'flex';
-}
-function closeIdentityPicker() { document.getElementById('identity-overlay').style.display = 'none'; }
-function maybeCloseIdentity(e) { if (e.target === document.getElementById('identity-overlay')) closeIdentityPicker(); }
-
-async function identitySelect(playerId, playerName) {
-  const client = getSupabase();
-  await client.from('profiles').update({ player_id: playerId }).eq('id', currentUser.id);
-  userProfile = { ...userProfile, player_id: playerId, player_name: playerName };
-  currentGroup = null; myGroups = [];
-  renderProfileBar();
-  closeIdentityPicker();
-  showToast(`Welcome aboard, ${playerName}! 🚄`);
-  await maybeHandlePendingJoin();
-}
-
-async function identityCreateNew() {
-  const name = document.getElementById('identity-new-inp').value.trim();
-  if (!name) return;
-  if (allPlayerRecords.some(p => p.display_name.toLowerCase() === name.toLowerCase())) {
-    showToast('That name already exists — tap it above'); return;
-  }
-  try {
-    const record = await saveNewPlayerToRoster(name);
-    renderPlayerChips();
-    await identitySelect(record.id, record.display_name);
-  } catch (e) {
-    showToast('Could not create player');
-  }
-}
-
 // ── Init ───────────────────────────────────────────────────────────────────
-
-// Handle Supabase error redirects (e.g. expired magic link) before anything else
-(function handleAuthError() {
-  const params = new URLSearchParams(window.location.search);
-  const err = params.get('error');
-  const desc = params.get('error_description');
-  if (err) {
-    history.replaceState(null, '', window.location.pathname);
-    const msg = err === 'access_denied' && desc?.includes('expired')
-      ? 'That sign-in link has expired — please request a new one.'
-      : (desc?.replace(/\+/g, ' ') || 'Sign-in failed. Please try again.');
-    // Show toast after DOM is ready
-    setTimeout(() => { showToast(msg, 5000); openAuthSheet(); }, 300);
-  }
-})();
 
 buildTopics();
 loadAppSettings();
 loadPlayerRoster();
-maybeHandleJoinLink();
-
-// Fallback: if onAuthStateChange never fires within 5s, unblock the UI
-const _authFallbackTimer = setTimeout(() => {
-  if (document.getElementById('profile-loading').style.display !== 'none') {
-    currentUser = null; userProfile = null;
-    renderProfileBar();
-  }
-}, 5000);
-
-// Auth state listener — fires on page load (existing session) and on magic link callback
-getSupabase().auth.onAuthStateChange(async (event, session) => {
-  clearTimeout(_authFallbackTimer);
-  try {
-    currentUser = session?.user || null;
-    userProfile = null;
-
-    if (currentUser) {
-      const { data } = await getSupabase()
-        .from('profiles')
-        .select('id, player_id, last_group_id, show_group_games, players(display_name)')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-      userProfile = data ? { ...data, player_name: data.players?.display_name || null } : null;
-    }
-    renderProfileBar();
-
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-      // Strip magic-link token from URL hash so a refresh doesn't re-process it,
-      // but leave query params intact (join links use ?join=CODE)
-      if (window.location.hash) {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-      }
-      closeAuthSheet();
-      if (currentUser && !userProfile?.player_id) {
-        openIdentityPicker();
-      } else if (currentUser && userProfile?.player_id) {
-        await maybeHandlePendingJoin();
-      }
-    }
-    if (event === 'SIGNED_OUT') {
-      currentGroup = null; myGroups = [];
-      renderGroupUI();
-    }
-  } catch (e) {
-    console.error('onAuthStateChange failed:', e);
-  }
-});
+maybeRestoreSession();

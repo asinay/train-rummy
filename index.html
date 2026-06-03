@@ -27,75 +27,37 @@
   <div class="logo-sub">Score Tracker</div>
   <div class="suits">♠ <span class="r">♥</span> ♣ <span class="r">♦</span></div>
 
-  <!-- Profile bar -->
-  <div class="profile-bar" id="profile-bar">
-    <div id="profile-loading">
-      <span class="profile-muted">Loading…</span>
-    </div>
-    <div id="profile-signed-in" style="display:none">
-      <span class="profile-name" id="profile-name"></span>
-      <button class="profile-link" onclick="openIdentityPicker()">Change identity</button>
-      <span class="profile-sep">·</span>
-      <button class="profile-link" onclick="signOut()">Sign out</button>
-    </div>
-    <div id="profile-signed-out" style="display:none">
-      <span class="profile-muted">First time? <button class="profile-link" onclick="openAuthSheet()">Sign in</button> to host games &amp; track your wins</span>
-    </div>
+  <div class="field-label">Join existing game</div>
+  <div class="room-row">
+    <input class="room-inp" id="join-code" placeholder="Room code (e.g. TRAIN-4829)" maxlength="12"
+           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+    <button class="room-btn" onclick="joinRoom()">Join</button>
+  </div>
+  <div style="width:100%;max-width:400px;margin-top:8px">
+    <input class="player-inp" id="join-password" type="password" placeholder="Room password"
+           autocomplete="off" style="width:100%;box-sizing:border-box">
   </div>
 
-  <!-- Group picker — shown when signed in, no group selected yet (or switching) -->
-  <div id="group-picker-section" style="display:none;width:100%;max-width:400px">
-    <div class="field-label">Your groups</div>
-    <div id="group-picker-list"></div>
-    <button class="add-player-btn" style="margin-top:4px" onclick="openGroupSheet()">+ Join or create a group</button>
+  <div class="or-divider">or start a new game</div>
+
+  <div class="field-label">Players today</div>
+  <div class="player-chips" id="player-chips">
+    <div class="chips-loading">Loading players…</div>
+  </div>
+  <button class="add-player-btn" onclick="openAddPlayerSheet()">+ New player</button>
+
+  <div style="width:100%;max-width:400px;margin-top:12px">
+    <div class="field-label">Room password</div>
+    <input class="player-inp" id="start-password" type="password"
+           placeholder="Choose a password for this game"
+           autocomplete="off" style="width:100%;box-sizing:border-box">
   </div>
 
-  <!-- Active group bar — shown once a group is selected -->
-  <div id="group-bar" style="display:none;width:100%;max-width:400px;margin-bottom:20px">
-    <div class="group-bar-inner">
-      <span class="group-bar-icon">👥</span>
-      <span class="group-bar-name" id="group-bar-name"></span>
-      <button class="group-bar-invite" onclick="openInviteSheet()">+ Invite</button>
-      <button class="group-bar-switch" onclick="switchGroup()">Switch</button>
-    </div>
-  </div>
-
-  <!-- Game section — shown when a group is selected (or always when signed out) -->
-  <div id="game-section">
-    <!-- Active games toggle — visible whenever user is in a group -->
-    <label id="group-games-toggle-wrap" class="toggle-wrap" style="display:none;align-self:flex-end;margin-bottom:6px" title="Show all group games, not just yours">
-      <span class="toggle-lbl">All group games</span>
-      <span class="toggle-track" id="group-games-toggle" onclick="toggleShowGroupGames()">
-        <span class="toggle-thumb"></span>
-      </span>
-    </label>
-    <!-- My active games — shown only when there are matching active games -->
-    <div id="my-games-section" style="display:none;width:100%;max-width:400px">
-      <div class="field-label">Continue a game</div>
-      <div id="my-games-list"></div>
-    </div>
-
-    <div class="field-label">Join existing game</div>
-    <div class="room-row">
-      <input class="room-inp" id="join-code" placeholder="Room code (e.g. TRAIN-4829)" maxlength="12"
-             autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-      <button class="room-btn" onclick="joinRoom()">Join</button>
-    </div>
-
-    <div class="or-divider">or start a new game</div>
-
-    <div class="field-label">Players today</div>
-    <div class="player-chips" id="player-chips">
-      <div class="chips-loading">Loading players…</div>
-    </div>
-    <button class="add-player-btn" onclick="openAddPlayerSheet()">+ New player</button>
-
-    <button class="start-btn" id="start-btn" onclick="startGame()">Start Game →</button>
-  </div>
+  <button class="start-btn" id="start-btn" onclick="startGame()">Start Game →</button>
 
   <button class="rules-link" onclick="openRules()">📖 How to play Train Rummy</button>
   <button class="rules-link" onclick="showStats()">📊 All-time stats</button>
-  <a id="feedback-link" class="rules-link" style="display:none;color:var(--text-3);font-size:14px;text-decoration:none">✉️ Feedback &amp; support</a>
+  <button id="feedback-link" class="rules-link" style="display:none;color:var(--text-3);font-size:14px">✉️ Feedback &amp; support</button>
   <button class="rules-link" style="color:var(--text-4);font-size:14px" onclick="openAdmin()">⚙️ Admin</button>
 </div>
 
@@ -164,63 +126,23 @@
   <button class="win-btn sec" onclick="showStats()">📊 All-time stats</button>
 </div>
 
-<!-- AUTH SHEET -->
-<div class="overlay" id="auth-overlay" onclick="maybeCloseAuth(event)">
+<!-- PASSWORD PROMPT OVERLAY (joining existing game) -->
+<div class="overlay" id="password-overlay" onclick="maybeClosePasswordPrompt(event)">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-nav">
-      <div class="sheet-ttl">Sign in</div>
-      <button class="x-btn" onclick="closeAuthSheet()">✕</button>
+      <div class="sheet-ttl">Enter room password</div>
+      <button class="x-btn" onclick="closePasswordPrompt()">✕</button>
     </div>
-    <!-- Entry state -->
-    <div id="auth-entry" style="padding:20px 20px 40px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--text)">Welcome aboard 🚄</div>
+    <div style="padding:20px 20px 40px;display:flex;flex-direction:column;gap:14px">
       <p style="font-size:14px;color:var(--text-3);line-height:1.6">
-        Enter your email and we'll send you a one-tap sign-in link — no password, no fuss. Your wins will be tracked across every game.
+        This game is password-protected. Enter the password to view and record scores.
       </p>
-      <input id="auth-email" class="player-inp" type="email" placeholder="your@email.com"
-             autocomplete="email" autocorrect="off" autocapitalize="none" inputmode="email">
-      <button class="rec-btn" onclick="sendMagicLink()">Send my sign-in link</button>
-      <div id="auth-error" style="font-size:13px;text-align:center;color:var(--red);display:none"></div>
-      <p style="font-size:12px;color:var(--text-4);text-align:center;line-height:1.5">Just joining a game? You can enter a room code without signing in.</p>
-    </div>
-    <!-- Sent state -->
-    <div id="auth-sent" style="display:none;padding:32px 24px 48px;flex-direction:column;align-items:center;gap:16px;text-align:center">
-      <div style="font-size:56px;line-height:1">📬</div>
-      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--text)">Check your email!</div>
-      <p style="font-size:15px;color:var(--text-2);line-height:1.7;max-width:280px">
-        We sent a sign-in link to<br>
-        <strong id="auth-sent-email" style="color:var(--amber)"></strong>
-      </p>
-      <div style="background:var(--amber-bg);border:1.5px solid #e8d4a0;border-radius:14px;padding:16px 20px;max-width:300px;width:100%">
-        <p style="font-size:13px;color:var(--text-2);line-height:1.7;margin:0">
-          Tap the link in the email to sign in.<br>
-          <span style="color:var(--text-3)">It may take a minute to arrive. Check your spam folder if you don't see it.</span>
-        </p>
-      </div>
-      <button class="rec-btn" style="background:var(--card2);color:var(--text-3);box-shadow:none;border:1.5px solid var(--border);margin-top:8px" onclick="resetAuthSheet()">Use a different email</button>
-    </div>
-  </div>
-</div>
-
-<!-- IDENTITY PICKER SHEET -->
-<div class="overlay" id="identity-overlay" onclick="maybeCloseIdentity(event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-nav">
-      <div class="sheet-ttl">Who are you?</div>
-      <button class="x-btn" onclick="closeIdentityPicker()">✕</button>
-    </div>
-    <div style="flex:1;overflow-y:auto;padding:16px 16px 36px;-webkit-overflow-scrolling:touch">
-      <p style="font-size:14px;color:var(--text-3);margin-bottom:16px;line-height:1.6">
-        Pick your player name — this is how you'll appear on the scoreboard.
-      </p>
-      <div id="identity-chips" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px"></div>
-      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Or add yourself as a new player</div>
-      <div style="display:flex;gap:8px">
-        <input id="identity-new-inp" class="player-inp" type="text" placeholder="Your name"
-               autocorrect="off" autocomplete="off">
-        <button class="room-btn" onclick="identityCreateNew()">Add</button>
+      <input id="prompt-password" class="player-inp" type="password" placeholder="Room password"
+             autocomplete="off">
+      <button class="rec-btn" onclick="submitPasswordPrompt()">Join Game</button>
+      <div id="prompt-error" style="font-size:13px;text-align:center;color:var(--red);display:none">
+        Incorrect password — ask the host.
       </div>
     </div>
   </div>
@@ -291,68 +213,6 @@
   </div>
 </div>
 
-<!-- INVITE SHEET -->
-<div class="overlay" id="invite-overlay" onclick="maybeCloseInviteSheet(event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-nav">
-      <div class="sheet-ttl" id="invite-sheet-title">Invite to Group</div>
-      <button class="x-btn" onclick="closeInviteSheet()">✕</button>
-    </div>
-    <div style="flex:1;overflow-y:auto;padding:16px 16px 40px;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:20px">
-      <!-- Add from roster -->
-      <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Add from roster</div>
-        <div id="invite-roster-chips" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px"></div>
-        <div id="invite-roster-empty" style="display:none;font-size:13px;color:var(--text-4)">Everyone in the roster is already in this group.</div>
-      </div>
-      <!-- Share link -->
-      <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Invite link</div>
-        <p style="font-size:14px;color:var(--text-3);margin-bottom:12px;line-height:1.6">Share this link — anyone who opens it will be prompted to join the group.</p>
-        <div style="display:flex;gap:8px">
-          <input id="invite-link-inp" class="player-inp" type="text" readonly
-                 style="font-size:13px;color:var(--text-3);letter-spacing:0.5px;cursor:text" onclick="this.select()">
-          <button class="room-btn" onclick="copyInviteLink()">Copy</button>
-        </div>
-        <button id="invite-share-btn" class="add-player-btn" style="margin-top:10px" onclick="shareInviteLink()">⬆ Share…</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- GROUP JOIN/CREATE SHEET -->
-<div class="overlay" id="group-overlay" onclick="maybeCloseGroupSheet(event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-nav">
-      <div class="sheet-ttl">Groups</div>
-      <button class="x-btn" onclick="closeGroupSheet()">✕</button>
-    </div>
-    <div style="flex:1;overflow-y:auto;padding:16px 16px 40px;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:20px">
-      <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Join an existing group</div>
-        <p style="font-size:14px;color:var(--text-3);margin-bottom:12px;line-height:1.6">Ask a group member for their group code.</p>
-        <div style="display:flex;gap:8px">
-          <input id="group-join-inp" class="player-inp" type="text" placeholder="Group code (e.g. TRAIN)"
-                 autocorrect="off" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:2px">
-          <button class="room-btn" onclick="joinGroup()">Join</button>
-        </div>
-        <div id="group-join-msg" style="font-size:13px;margin-top:8px;display:none"></div>
-      </div>
-      <div class="or-divider" style="margin:0">or create a new group</div>
-      <div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-3);text-transform:uppercase;margin-bottom:10px">Create a group</div>
-        <p style="font-size:14px;color:var(--text-3);margin-bottom:12px;line-height:1.6">Give your group a name. You'll get a code to share with friends.</p>
-        <input id="group-name-inp" class="player-inp" type="text" placeholder="Group name (e.g. Train Commuters)"
-               autocorrect="off" autocomplete="off" style="margin-bottom:10px">
-        <button class="rec-btn" onclick="createGroup()">Create Group</button>
-        <div id="group-create-msg" style="font-size:13px;margin-top:8px;display:none"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ADMIN OVERLAY -->
 <div class="overlay" id="admin-overlay" onclick="maybeCloseAdmin(event)">
   <div class="sheet">
@@ -386,19 +246,17 @@
         </div>
       </div>
 
-      <!-- Groups section -->
-      <div>
-        <div class="admin-section-title">Groups</div>
-        <div id="admin-groups-list"><div class="chips-loading">Loading…</div></div>
-      </div>
-
       <!-- Players section -->
       <div>
         <div class="admin-section-title">Players</div>
         <div id="admin-players-list"><div class="chips-loading">Loading…</div></div>
       </div>
 
-
+      <!-- Game rooms section -->
+      <div>
+        <div class="admin-section-title">Game Rooms</div>
+        <div id="admin-rooms-list"><div class="chips-loading">Loading…</div></div>
+      </div>
 
       <!-- Game history section -->
       <div>
@@ -412,7 +270,7 @@
         <div class="stat-card">
           <div class="stat-row" style="flex-direction:column;align-items:flex-start;gap:8px">
             <div style="font-size:15px;font-weight:600;color:var(--text)">Reset all-time stats</div>
-            <div style="font-size:13px;color:var(--text-3)">Deletes all game history across all groups.</div>
+            <div style="font-size:13px;color:var(--text-3)">Deletes all game history.</div>
             <div id="admin-reset-confirm" style="display:none;margin-top:4px;width:100%;background:var(--red-bg);border:1.5px solid var(--red);border-radius:12px;padding:14px;flex-direction:column;gap:10px">
               <div style="font-size:14px;font-weight:600;color:var(--red)">Are you sure? This cannot be undone.</div>
               <div style="display:flex;gap:8px">
