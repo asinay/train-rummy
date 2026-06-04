@@ -123,7 +123,8 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .ep-title{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--text-2);text-transform:uppercase}
 .ep-chev{color:var(--text-3);font-size:12px;transition:transform .2s}
 .ep-chev.open{transform:rotate(180deg)}
-.entries-grid{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.entries-grid{padding:14px;display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:480px){.entries-grid{grid-template-columns:1fr 1fr}}
 .e-card{background:var(--card2);border:1.5px solid var(--border);border-radius:12px;padding:12px 10px 10px;display:flex;flex-direction:column;gap:8px}
 .e-name{font-size:13px;font-weight:600;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .e-inp-row{display:flex;gap:6px;align-items:stretch}
