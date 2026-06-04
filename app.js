@@ -16,7 +16,7 @@ let supportEmail = '';
 // players = [{id, name, total}] for current game
 // playerRecords = [{id, display_name}] — full global roster
 let players = [], playerRecords = [], rounds = [];
-let panelOpen = true, focusedPlayer = null;
+let focusedPlayer = null;
 let currentRoom = null, currentGameId = null, currentPassword = null;
 let syncInterval = null, lastSyncTime = 0;
 
@@ -463,7 +463,8 @@ async function startGame() {
 function render() {
   renderScoreboard(); renderEntries(); renderHistory();
   document.getElementById('round-lbl').textContent = `Round ${rounds.length + 1}`;
-  document.getElementById('room-badge').textContent = currentRoom || '';
+  const inlineBadge = document.getElementById('room-badge-inline');
+  if (inlineBadge) inlineBadge.textContent = currentRoom || '';
 }
 
 function renderScoreboard() {
@@ -614,11 +615,6 @@ function renderHistory() {
   inner.innerHTML = hdr + rows;
 }
 
-function togglePanel() {
-  panelOpen = !panelOpen;
-  document.getElementById('panel-body').style.display = panelOpen ? '' : 'none';
-  document.getElementById('ep-chev').className = 'ep-chev' + (panelOpen ? ' open' : '');
-}
 
 function setGameEnded(ended) {
   document.getElementById('end-btn').style.display = ended ? 'none' : '';
