@@ -304,6 +304,23 @@ async function saveNewPlayer() {
   }
 }
 
+// ── Animations ─────────────────────────────────────────────────────────────
+
+function playTrainAnimation() {
+  const overlay = document.getElementById('train-overlay');
+  overlay.classList.add('running');
+  overlay.addEventListener('animationend', () => overlay.classList.remove('running'), { once: true });
+}
+
+function playConfetti() {
+  const crown = document.getElementById('win-crown');
+  if (crown) { crown.classList.remove('animate'); void crown.offsetWidth; crown.classList.add('animate'); }
+  if (typeof confetti !== 'function') return;
+  confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 }, colors: ['#b07a20','#1b6e3f','#b52a1f','#f5f0e8','#ffffff'] });
+  setTimeout(() => confetti({ particleCount: 60, spread: 120, origin: { y: 0.4 }, angle: 60 }), 350);
+  setTimeout(() => confetti({ particleCount: 60, spread: 120, origin: { y: 0.4 }, angle: 120 }), 700);
+}
+
 // ── Screen routing ─────────────────────────────────────────────────────────
 
 function showScreen(id) {
@@ -311,6 +328,8 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
   if (id === 'stats') renderStats();
+  if (id === 'game') playTrainAnimation();
+  if (id === 'winner') playConfetti();
 }
 
 // ── Room / Sync ────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
   <!-- ── CONFIG ── -->
   <script>
@@ -119,7 +120,10 @@
 <div id="winner" class="screen">
   <div class="win-t">🏆</div>
   <div class="win-sub">North Station — Train Rummy!</div>
-  <div class="win-name" id="win-name">—</div>
+  <div class="win-name-wrap">
+    <div class="win-crown" id="win-crown">👑</div>
+    <div class="win-name" id="win-name">—</div>
+  </div>
   <div class="win-sc" id="win-sc"></div>
   <div class="win-summary" id="win-summary"></div>
   <button class="win-btn" onclick="newGame()">New Game</button>
@@ -288,6 +292,11 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- TRAIN ANIMATION OVERLAY -->
+<div id="train-overlay" aria-hidden="true">
+  <div id="train-car">🚂</div>
+</div>
 
 <script src="app.js"></script>
 </body>

@@ -194,7 +194,16 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 #winner{align-items:center;padding:40px 20px 40px;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,40px)}
 .win-t{font-size:60px;margin-bottom:8px}
 .win-sub{font-size:10px;letter-spacing:4px;color:var(--text-3);text-transform:uppercase;margin-bottom:8px;text-align:center}
-.win-name{font-family:'Playfair Display',serif;font-size:40px;font-weight:900;color:var(--amber);text-align:center;margin-bottom:4px}
+.win-name-wrap{position:relative;text-align:center;margin-bottom:4px}
+.win-name{font-family:'Playfair Display',serif;font-size:40px;font-weight:900;color:var(--amber)}
+@keyframes crown-drop{
+  0%  {transform:translateY(-60px) rotate(-20deg);opacity:0}
+  60% {transform:translateY(8px) rotate(4deg);opacity:1}
+  80% {transform:translateY(-4px) rotate(-2deg)}
+  100%{transform:translateY(0) rotate(0deg);opacity:1}
+}
+.win-crown{font-size:36px;line-height:1;margin-bottom:2px;opacity:0}
+.win-crown.animate{animation:crown-drop .7s cubic-bezier(.34,1.56,.64,1) .3s forwards}
 .win-sc{font-size:14px;color:var(--text-3);margin-bottom:20px;text-align:center}
 .win-summary{width:100%;max-width:400px;margin-bottom:20px;background:rgba(176,122,32,0.08);border:1.5px solid rgba(176,122,32,0.2);border-radius:14px;overflow:hidden}
 .win-btn{width:100%;max-width:360px;height:54px;background:var(--amber);border:none;border-radius:14px;color:#fff;font-family:'Playfair Display',serif;font-size:18px;font-weight:700;cursor:pointer;margin-bottom:12px;box-shadow:0 4px 14px rgba(176,122,32,0.28)}
@@ -242,3 +251,19 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .toast.show{transform:translateX(-50%) translateY(0)}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;flex-shrink:0}
 .sync-dot.stale{background:var(--amber)}
+
+/* ── TRAIN ANIMATION ── */
+#train-overlay{position:fixed;inset:0;pointer-events:none;z-index:500;overflow:hidden;display:none}
+#train-overlay.running{display:block}
+@keyframes train-ride{
+  0%  {transform:translateX(calc(100vw + 200px))}
+  100%{transform:translateX(-200px)}
+}
+#train-car{
+  position:absolute;
+  bottom:30%;
+  font-size:72px;
+  line-height:1;
+  animation:train-ride 4s cubic-bezier(.4,0,.6,1) forwards;
+  white-space:nowrap;
+}
