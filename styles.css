@@ -170,13 +170,25 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .stat-vals{text-align:right;flex-shrink:0}
 .stat-main{font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--amber);line-height:1.1}
 .stat-sub{font-size:11px;color:var(--text-3);margin-top:3px;line-height:1.4}
-.game-hist-row{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);gap:10px}
+.game-hist-row{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);gap:10px;cursor:pointer;transition:background .15s}
 .game-hist-row:last-child{border-bottom:none}
+.game-hist-row:hover,.game-hist-row:active{background:var(--card2)}
 .gh-date{font-size:11px;color:var(--text-3);min-width:72px;flex-shrink:0}
 .gh-info{flex:1;min-width:0}
 .gh-winner{font-size:14px;font-weight:600;color:var(--text)}
 .gh-players{font-size:11px;color:var(--text-4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gh-pts{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--amber);flex-shrink:0}
+.sc-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;border:1.5px solid var(--border)}
+.sc-tbl{width:100%;border-collapse:collapse;min-width:max-content;font-size:13px}
+.sc-tbl th{background:var(--card2);color:var(--text-3);font-weight:600;font-size:11px;letter-spacing:.5px;padding:8px 12px;text-align:center;border-bottom:1.5px solid var(--border);white-space:nowrap}
+.sc-tbl th:first-child{text-align:left}
+.sc-tbl td{padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap}
+.sc-tbl td:first-child{color:var(--text-3);font-size:12px;text-align:left}
+.sc-tbl tr:last-child td{border-bottom:none}
+.sc-tbl tr.sc-total td{background:var(--card2);font-weight:700;color:var(--text);border-top:1.5px solid var(--border)}
+.sc-tbl tr.sc-total td:first-child{color:var(--text-3)}
+.sc-winner-cell{color:var(--amber)!important;font-weight:700}
+.sc-leg-sep td{background:var(--card2);color:var(--text-4);font-size:11px;font-style:italic;padding:4px 12px;border-top:1.5px solid var(--border)}
 .empty-state{text-align:center;padding:40px 20px;color:var(--text-4);font-size:13px;line-height:1.6}
 
 /* Admin panel */

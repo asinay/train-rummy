@@ -298,6 +298,18 @@
   <div id="train-car">🚂</div>
 </div>
 
+<!-- ROUND SCORECARD OVERLAY -->
+<div class="overlay" id="scorecard-overlay" onclick="maybeCloseScorecard(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-nav">
+      <div class="sheet-ttl" id="scorecard-title">Scorecard</div>
+      <button class="x-btn" onclick="closeScorecard()">✕</button>
+    </div>
+    <div id="scorecard-body" style="flex:1;overflow-y:auto;padding:16px 16px 36px;-webkit-overflow-scrolling:touch"></div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

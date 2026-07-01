@@ -191,7 +191,8 @@ async function loadHistory() {
       players: g.player_names.map(name => ({ name, total: playerTotals[name] || 0 })),
       legs,
       rounds: g.rounds_count,
-      room: g.room_code
+      room: g.room_code,
+      gameId: g.game_id
     };
   });
 }
@@ -924,8 +925,9 @@ function renderHistorySection(history) {
     const legSummary = legs.length > 1
       ? legs.map(l => `🏆 ${l.winner} <span style="color:var(--text-4)">(${l.rounds}r)</span>`).join(' · ')
       : `🏆 ${g.winner}`;
+    const clickAttr = g.gameId ? `onclick="openRoundScorecard('${g.gameId}', '${g.date.replace(/'/g, '')}')"` : '';
     return `
-    <div class="game-hist-row">
+    <div class="game-hist-row" ${clickAttr}>
       <div class="gh-date">${g.date}</div>
       <div class="gh-info">
         <div class="gh-winner">${legSummary}</div>
@@ -959,6 +961,86 @@ async function collapseStatsHistory() {
   if (!_cachedHistory) _cachedHistory = await loadHistory();
   renderHistorySection(_cachedHistory);
 }
+
+// ── Round Scorecard ────────────────────────────────────────────────────────
+
+async function openRoundScorecard(gameId, dateLabel) {
+  if (!gameId) return;
+  const el = document.getElementById('scorecard-overlay');
+  const body = document.getElementById('scorecard-body');
+  const title = document.getElementById('scorecard-title');
+  title.textContent = dateLabel || 'Scorecard';
+  body.innerHTML = '<div class="empty-state">Loading…</div>';
+  el.style.display = 'flex';
+
+  const client = getSupabase();
+
+  const [{ data: gpRows }, { data: scoreRows }] = await Promise.all([
+    client.from('game_players')
+      .select('player_id, joined_at_round, sort_order, players(display_name)')
+      .eq('game_id', gameId)
+      .order('sort_order'),
+    client.from('round_scores')
+      .select('round_number, player_id, score')
+      .eq('game_id', gameId)
+      .order('round_number')
+  ]);
+
+  if (!gpRows || !gpRows.length || !scoreRows) {
+    body.innerHTML = '<div class="empty-state">No round data available for this game.</div>';
+    return;
+  }
+
+  const players = gpRows.map(r => ({
+    id: r.player_id,
+    name: r.players?.display_name || r.player_id,
+    joinedAt: r.joined_at_round || 1
+  }));
+
+  // Build a map: roundNum → { playerId → score }
+  const byRound = {};
+  scoreRows.forEach(r => {
+    if (!byRound[r.round_number]) byRound[r.round_number] = {};
+    byRound[r.round_number][r.player_id] = r.score;
+  });
+  const roundNums = Object.keys(byRound).map(Number).sort((a, b) => a - b);
+
+  // Running totals per player
+  const totals = {};
+  players.forEach(p => { totals[p.id] = 0; });
+
+  const headerCells = players.map(p => `<th>${p.name}</th>`).join('');
+  const rows = roundNums.map(rn => {
+    const cells = players.map(p => {
+      if (rn < p.joinedAt) return '<td style="color:var(--text-4)">—</td>';
+      const s = byRound[rn][p.id];
+      if (s == null) return '<td style="color:var(--text-4)">—</td>';
+      totals[p.id] += s;
+      const cls = s > 0 ? 'sc-winner-cell' : '';
+      return `<td class="${cls}">${s > 0 ? '+' : ''}${s}</td>`;
+    }).join('');
+    return `<tr><td>Round ${rn}</td>${cells}</tr>`;
+  }).join('');
+
+  const totalCells = players.map(p => {
+    const t = totals[p.id];
+    return `<td>${t > 0 ? '+' : ''}${t}</td>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="sc-wrap">
+      <table class="sc-tbl">
+        <thead><tr><th></th>${headerCells}</tr></thead>
+        <tbody>
+          ${rows}
+          <tr class="sc-total"><td>Total</td>${totalCells}</tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function closeScorecard() { document.getElementById('scorecard-overlay').style.display = 'none'; }
+function maybeCloseScorecard(e) { if (e.target === document.getElementById('scorecard-overlay')) closeScorecard(); }
 
 // ── Rules ──────────────────────────────────────────────────────────────────
 
