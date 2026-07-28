@@ -45,6 +45,7 @@ A mobile-first score tracker so one person can log rounds for the whole table �
 - **Game history** — full expandable history of completed games per group
 - **Magic link sign-in** — no passwords; sign in with your email and pick your player identity
 - **Rules sheet** — full rules in-app, organized by topic, always one tap away
+- **Canceled games** — ending a game before any rounds are recorded silently deletes it (no history entry); useful for demos or accidental starts
 - **Super-admin panel** — manage groups, players, game rooms, and history; cascade-delete with confirmation
 
 ---

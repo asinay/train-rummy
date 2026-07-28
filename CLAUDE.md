@@ -94,6 +94,10 @@ Every table needs explicit DELETE (and UPDATE) policies — the default is deny.
 
 Accessed via the ⚙️ button on the home screen with a hardcoded code (`adminCode = 'asaf'` in `app.js`). Provides cascade-delete for groups, players, game rooms, and history. All destructive buttons use a double-tap confirm pattern: first tap shows "Sure?", second tap executes.
 
+### Canceled games
+
+If "End Game" is tapped before any rounds are recorded, the game is treated as canceled: the `game_rooms` row is deleted and the user is returned to the setup screen. Nothing is written to history. This handles demo/test sessions without leaving orphaned records.
+
 ### Scoring model
 
 Scores accumulate across rounds. When a player joins mid-game (`joined_at_round > 1`), the game is split into **legs** — the scoreboard and stats compare players only within the leg they share. `game_players.joined_at_round` tracks this.

@@ -751,7 +751,17 @@ async function removePlayerFromGame(playerId, playerName, rowEl) {
 // ── End Game / Winner ──────────────────────────────────────────────────────
 
 async function endGame() {
-  if (!rounds.length) { showToast('No rounds recorded yet'); return; }
+  if (!rounds.length) {
+    const client = getSupabase();
+    if (currentGameId) {
+      await client.from('game_rooms').delete({ count: 'exact' }).eq('id', currentGameId);
+      currentGameId = null;
+      currentRoom = null;
+    }
+    clearSession();
+    showScreen('setup');
+    return;
+  }
   const sorted = [...players].map((p, i) => ({ ...p, i })).sort((a, b) => b.total - a.total);
   try {
     await saveGameToHistory(sorted[0], players, rounds.length);
