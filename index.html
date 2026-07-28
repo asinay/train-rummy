@@ -34,11 +34,6 @@
            autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
     <button class="room-btn" onclick="joinRoom()">Join</button>
   </div>
-  <div style="width:100%;max-width:400px;margin-top:8px">
-    <input class="player-inp" id="join-password" type="password" placeholder="Room password"
-           autocomplete="off" style="width:100%;box-sizing:border-box">
-  </div>
-
   <div class="or-divider">or start a new game</div>
 
   <div class="field-label">Players today</div>
@@ -46,13 +41,6 @@
     <div class="chips-loading">Loading players…</div>
   </div>
   <button class="add-player-btn" onclick="openAddPlayerSheet()">+ New player</button>
-
-  <div style="width:100%;max-width:400px;margin-top:12px">
-    <div class="field-label">Room password</div>
-    <input class="player-inp" id="start-password" type="password"
-           placeholder="Choose a password for this game"
-           autocomplete="off" style="width:100%;box-sizing:border-box">
-  </div>
 
   <button class="start-btn" id="start-btn" onclick="startGame()">Start Game →</button>
 

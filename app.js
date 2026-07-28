@@ -35,9 +35,9 @@ function getSupabase() {
 
 // ── Session persistence (survive refresh) ─────────────────────────────────
 function saveSession() {
-  if (!currentRoom || !currentGameId || !currentPassword) return;
+  if (!currentRoom || !currentGameId) return;
   sessionStorage.setItem('tr_session', JSON.stringify({
-    room: currentRoom, gameId: currentGameId, password: currentPassword
+    room: currentRoom, gameId: currentGameId
   }));
   // Keep ?room= in the URL so the link is shareable
   const url = new URL(window.location.href);
@@ -54,8 +54,8 @@ async function maybeRestoreSession() {
   try {
     const raw = sessionStorage.getItem('tr_session');
     if (!raw) return;
-    const { room, gameId, password } = JSON.parse(raw);
-    if (!room || !gameId || !password) return;
+    const { room, gameId } = JSON.parse(raw);
+    if (!room || !gameId) return;
 
     showToast('Resuming game…');
     const state = await loadGameState(room);
@@ -63,7 +63,6 @@ async function maybeRestoreSession() {
 
     currentRoom = room;
     currentGameId = gameId;
-    currentPassword = password;
     players = state.players;
     rounds = state.rounds;
     setGameEnded(false); startSync(); showScreen('game'); render();
@@ -342,32 +341,24 @@ function genRoomCode() {
 
 async function joinRoom() {
   const code = document.getElementById('join-code').value.trim().toUpperCase();
-  const password = document.getElementById('join-password').value.trim();
   if (!code) { showToast('Enter a room code'); return; }
-  if (!password) { showToast('Enter the room password'); return; }
 
   showToast('Joining…');
   const client = getSupabase();
 
-  // Fetch room (including password) to validate
   const { data: room } = await client.from('game_rooms')
-    .select('id, room_code, status, room_password')
+    .select('id, room_code, status')
     .eq('room_code', code)
     .eq('status', 'active')
     .maybeSingle();
 
   if (!room) { showToast('Room not found'); return; }
-  if (room.room_password && room.room_password !== password) {
-    document.getElementById('join-password').value = '';
-    showToast('Wrong password — ask the host'); return;
-  }
 
   const state = await loadGameState(code);
   if (!state) { showToast('Room not found'); return; }
 
   currentRoom = code;
   currentGameId = room.id;
-  currentPassword = password;
   players = state.players;
   rounds = state.rounds;
   saveSession();
@@ -456,15 +447,11 @@ async function startGame() {
   const selected = getSelectedPlayers();
   if (selected.length < 2) { showToast('Select at least 2 players'); return; }
 
-  const password = document.getElementById('start-password').value.trim();
-  if (!password) { showToast('Choose a room password'); return; }
-
   currentRoom = genRoomCode();
-  currentPassword = password;
   const client = getSupabase();
 
   const { data: room, error } = await client.from('game_rooms')
-    .insert({ room_code: currentRoom, status: 'active', room_password: password })
+    .insert({ room_code: currentRoom, status: 'active' })
     .select('id')
     .single();
   if (error) { showToast('Could not create game'); return; }
@@ -839,16 +826,12 @@ function showWinner() {
 
 function newGame() {
   if (syncInterval) clearInterval(syncInterval);
-  const lastPassword = currentPassword;
   currentRoom = null; currentGameId = null; currentPassword = null;
   players = []; rounds = [];
   selectedPlayerIds.clear();
   clearSession();
   setGameEnded(false);
   document.getElementById('join-code').value = '';
-  document.getElementById('join-password').value = '';
-  // Keep last password pre-filled so the same group can start another game without retyping
-  document.getElementById('start-password').value = lastPassword || '';
   showScreen('setup');
   loadPlayerRoster();
 }
@@ -1334,9 +1317,7 @@ loadPlayerRoster();
     const cached = JSON.parse(sessionStorage.getItem('tr_session') || '{}');
     if (cached.room === code.toUpperCase()) return;
   } catch (e) {}
-  // Pre-fill join fields and open password prompt
   document.getElementById('join-code').value = code.toUpperCase();
-  openPasswordPrompt(code.toUpperCase());
 })();
 
 maybeRestoreSession();
