@@ -1,4 +1,7 @@
-# 🚄 Train Rummy
+<div align="center">
+  <img src="apple-touch-icon.png" alt="Train Rummy icon" width="96" height="96">
+  <h1>Train Rummy</h1>
+</div>
 
 > A score tracker for the card game played on the Boston commuter rail to North Station.
 
