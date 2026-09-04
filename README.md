@@ -11,15 +11,13 @@
 
 ## The game
 
-Train Rummy is a two-deck Rummy variant built for the commute — fast rounds, fierce competition, and just enough strategy to make the ride fly by.
+Train Rummy is a single-deck Rummy variant built for the commute — fast rounds, fierce competition, and just enough strategy to make the ride fly by.
 
-Each player is dealt **14 cards** from a double deck (104 cards + 2 Jokers). On your turn you draw, meld sets or sequences, and discard. The twist: your score goes **up** for every card you meld, and **down** for every card left in your hand when someone goes out. High score wins.
+Each player is dealt **8 cards** from a single 52-card deck (no jokers). On your turn you draw, meld sets or sequences, and discard. The twist: your score goes **up** for every card you meld, and **down** for every card left in your hand when someone goes out. High score wins.
 
 A few wrinkles that keep things interesting:
 
-- **First meld must total 51+ points** — you can't open cheap
 - **Remi** — meld your entire hand in one turn with no prior melds, and everyone else takes *double* penalties
-- **Steal a Joker** — replace any tabled Joker with the natural card it represents and pocket the wild
 - **Take the pile** — grab the entire discard pile if you can immediately use the top card in a new meld
 
 ### Scoring quick reference
@@ -29,7 +27,7 @@ A few wrinkles that keep things interesting:
 | Ace (high: Q–K–A) | +15 | −15 |
 | Ace (low: A–2–3) | +5 | −15 |
 | J, Q, K, 10 | +10 | −10 |
-| 2–9, Joker | +5 | −5 |
+| 2–9 | +5 | −5 |
 
 ---
 
