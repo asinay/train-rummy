@@ -497,9 +497,12 @@ function renderScoreboard() {
 
 function renderEntries() {
   const c = document.getElementById('entries'); c.innerHTML = '';
+  const dealerIdx = players.length ? rounds.length % players.length : -1;
   players.forEach((p, i) => {
-    const d = document.createElement('div'); d.className = 'e-card';
+    const isDealer = i === dealerIdx;
+    const d = document.createElement('div'); d.className = 'e-card' + (isDealer ? ' dealer' : '');
     d.innerHTML = `<div class="e-name">${p.name}</div>
+      ${isDealer ? '<div class="dealer-tag-row"><div class="dealer-tag-spacer"></div><div class="dealer-tag-center"><div class="dealer-tag">🎲 DEALER</div></div></div>' : ''}
       <div class="e-inp-row">
         <button class="e-sign-btn" id="esign${i}" type="button" onclick="toggleSign(${i})">+</button>
         <input class="e-inp" type="text" id="e${i}" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="none">

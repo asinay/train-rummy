@@ -127,7 +127,13 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .ep-title{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--text-2);text-transform:uppercase}
 .entries-grid{padding:14px;display:grid;grid-template-columns:1fr;gap:10px}
 .e-card{background:var(--card2);border:1.5px solid var(--border);border-radius:12px;padding:12px 10px 10px;display:flex;flex-direction:column;gap:8px}
+.e-card.dealer{border-width:2px;border-color:var(--amber)}
 .e-name{font-size:13px;font-weight:600;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dealer-tag-row{display:flex;gap:6px}
+.dealer-tag-spacer{width:44px;flex-shrink:0}
+.dealer-tag-center{flex:1;display:flex;justify-content:center;min-width:0}
+.dealer-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;letter-spacing:1px;color:#fff;background:var(--amber);border-radius:20px;padding:3px 12px;box-shadow:0 2px 6px rgba(176,122,32,0.35);animation:dealer-pop .25s ease-out}
+@keyframes dealer-pop{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}
 .e-inp-row{display:flex;gap:6px;align-items:stretch}
 .e-sign-btn{flex-shrink:0;width:44px;height:52px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;color:var(--text-3);font-family:'IBM Plex Sans',sans-serif;font-size:20px;font-weight:700;cursor:pointer;touch-action:manipulation;transition:border-color .14s,background .14s,color .14s;display:flex;align-items:center;justify-content:center;-webkit-appearance:none}
 .e-sign-btn.neg{background:var(--red-bg);border-color:var(--red);color:var(--red)}
