@@ -874,9 +874,11 @@ function newGame() {
 // ── Stats ──────────────────────────────────────────────────────────────────
 
 let statsHistoryExpanded = false;
+let statsBestsExpanded = false;
 const STATS_HISTORY_INITIAL = 10;
+const STATS_BESTS_INITIAL = 3;
 
-function showStats() { statsHistoryExpanded = false; _cachedHistory = null; showScreen('stats'); }
+function showStats() { statsHistoryExpanded = false; statsBestsExpanded = false; _cachedHistory = null; showScreen('stats'); }
 
 async function renderStats() {
   const body = document.getElementById('stats-body');
@@ -926,9 +928,71 @@ async function renderStats() {
 
   body.innerHTML = `
     <div class="stat-section"><div class="stat-sec-title">Leaderboard — ${history.length} game${history.length !== 1 ? 's' : ''} · ranked by leg wins</div><div class="stat-card">${leaderRows}</div></div>
+    <div class="stat-section" id="bests-section"></div>
+    <div class="stat-section"><button class="rec-btn" style="width:100%" onclick="exportHistoryJson()">↓ Export game history (JSON)</button></div>
     <div class="stat-section" id="history-section"></div>`;
 
+  renderBestsSection(history);
   renderHistorySection(history);
+}
+
+function renderBestsSection(history) {
+  const section = document.getElementById('bests-section');
+  if (!section) return;
+
+  const bestMap = {};
+  history.forEach(g => {
+    g.players.forEach(p => {
+      if (!(p.name in bestMap) || p.total > bestMap[p.name]) bestMap[p.name] = p.total;
+    });
+  });
+  const bests = Object.entries(bestMap)
+    .map(([name, best]) => ({ name, best }))
+    .sort((a, b) => b.best - a.best);
+
+  const visible = statsBestsExpanded ? bests : bests.slice(0, STATS_BESTS_INITIAL);
+  const hasMore = bests.length > STATS_BESTS_INITIAL;
+
+  const bestRows = visible.map(p => `
+    <div class="stat-row">
+      <div class="stat-name">${p.name}</div>
+      <div class="gh-pts">${p.best} pts</div>
+    </div>`).join('');
+
+  const showMoreBtn = (!statsBestsExpanded && hasMore)
+    ? `<button onclick="expandStatsBests()" style="width:100%;padding:14px;background:none;border:none;color:var(--amber);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show all ${bests.length} players ▾</button>`
+    : (statsBestsExpanded && hasMore)
+    ? `<button onclick="collapseStatsBests()" style="width:100%;padding:14px;background:none;border:none;color:var(--text-4);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show less ▴</button>`
+    : '';
+
+  section.innerHTML = `
+    <div class="stat-sec-title">Personal Bests</div>
+    <div class="stat-card">${bestRows}${showMoreBtn}</div>`;
+}
+
+async function expandStatsBests() {
+  statsBestsExpanded = true;
+  if (!_cachedHistory) _cachedHistory = await loadHistory();
+  renderBestsSection(_cachedHistory);
+}
+
+async function collapseStatsBests() {
+  statsBestsExpanded = false;
+  if (!_cachedHistory) _cachedHistory = await loadHistory();
+  renderBestsSection(_cachedHistory);
+}
+
+async function exportHistoryJson() {
+  if (!_cachedHistory) _cachedHistory = await loadHistory();
+  const blob = new Blob([JSON.stringify(_cachedHistory, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `train-rummy-history-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function renderHistorySection(history) {
