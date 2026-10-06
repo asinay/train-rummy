@@ -37,24 +37,41 @@ A mobile-first score tracker so one person can log rounds for the whole table �
 
 ### Features
 
-- **Groups** — persistent player groups (e.g. "Train Commuters"); each group has its own roster, stats, and game history. One app, multiple social circles.
-- **Room codes** — start a game inside your group, share the code (e.g. `TRAIN-4829`), anyone can join from their phone
-- **Continue a game** — active games in your group appear front-and-centre when you open the app; tap to resume instantly
-- **Live sync** — scores update every 4 seconds across all connected devices
+- **Room codes** — start a game, share the code (e.g. `TRAIN-4829`), anyone can join from their phone; rooms can optionally be locked with a password
+- **Live sync** — open devices poll every 4 seconds so everyone sees the latest scores
 - **Mid-game joins** — tap ➕ to add a late arrival; scores split into legs so early and late players are ranked fairly
-- **All-time leaderboard** — per-group stats sorted by leg win %, with round win rate and avg score
-- **Game history** — full expandable history of completed games per group
-- **Magic link sign-in** — no passwords; sign in with your email and pick your player identity
+- **All-time leaderboard** — sorted by leg win %, folded to the top 3 with "Show all"; each row shows round win rate, avg score, and personal-best game
+- **Player detail stats** — tap any player for a themed sheet: win-rate tiles, a score trend chart, a round-record bar, a hot/cold streak badge, and head-to-head records (e.g. "Scott 11W – 5L – 2T" means *this* player beat Scott 11 times) against every opponent they've shared a leg with
+- **Seasonal themes** — admin picks Classic, Halloween, Fall, or Winter for everyone; themed celebrations, decorations, and copy follow automatically
+- **Game history** — full expandable history of completed games, exportable as JSON (admin-only)
 - **Rules sheet** — full rules in-app, organized by topic, always one tap away
 - **Canceled games** — ending a game before any rounds are recorded silently deletes it (no history entry); useful for demos or accidental starts
-- **Super-admin panel** — manage groups, players, game rooms, and history; cascade-delete with confirmation
+- **Admin panel** — code-gated (not a user account); manage players, game rooms, history, the support email, and the shared theme; cascade-delete with confirmation
+
+### Seasonal themes
+
+Admin → App theme offers Classic, Halloween, Fall, and Winter. The selection is
+saved in Supabase and shared with all devices; open pages refresh it every five
+seconds. Game scores, room codes, history, and statistics use the existing data.
+
+End-game celebrations match the theme: confetti for Classic, leaves for Fall,
+snowflakes for Winter, and pumpkins, ghosts, and spiders for Halloween. Seasonal
+particles respect reduced-motion preferences and clean themselves up after use.
+
+The admin code itself lives only in `app_settings.admin_code` server-side —
+`verify_admin_code`/`update_admin_settings` RPCs (added in
+`20261006000000_admin_seasonal_themes.sql`) check it and apply theme/support-email
+changes without ever exposing the column to clients. If you fork this repo,
+apply that migration before (or together with) deploying this frontend version —
+older frontends read a `admin_code` column directly and would silently stop
+working against the locked-down schema.
 
 ---
 
 ## Tech stack
 
 - Pure HTML / CSS / JS — no framework, no build step
-- [Supabase](https://supabase.com) — Postgres database, RLS, magic link auth
+- [Supabase](https://supabase.com) — Postgres database, row-level security, anon-key access (no user accounts)
 - Hosted on GitHub Pages
 
 ---
@@ -69,27 +86,22 @@ python local_server.py
 
 The app is now running at **http://127.0.0.1:3000**.
 
-### 2. Allow the local URL for magic link auth
-
-In your [Supabase dashboard](https://supabase.com/dashboard) → **Authentication → URL Configuration**, add:
-
-```
-http://localhost:8765
-```
-
-to the **Redirect URLs** list so magic links land back on your local server after sign-in.
-
 > You can also run `python -m http.server 8765` but `local_server.py` is preferred — it always serves from the repo root regardless of your working directory.
 
-### 3. Make changes, refresh, and test
+### 2. Make changes, refresh, and test
 
-All logic lives in three files:
+> **Cache gotcha:** `index.html` loads `styles.css`/`app.js` with a `?v=N` query param. If you edit either file, bump its `v` — otherwise browsers (yours and your testers') keep serving the cached version and your changes won't appear.
+
+Core logic lives in three files, plus a handful of theme-specific files:
 
 | File | What it contains |
 |------|-----------------|
 | [index.html](index.html) | App shell, all screens and overlays, `APP_CONFIG` |
-| [styles.css](styles.css) | All styles |
-| [app.js](app.js) | Game logic, Supabase queries, auth, groups, admin |
+| [styles.css](styles.css) | Base styles, CSS variables for theming |
+| [app.js](app.js) | Game logic, Supabase queries, stats, admin |
+| [theme.js](theme.js) | Reads/writes the shared theme setting, swaps themed copy |
+| [celebration.js](celebration.js) / [celebration.css](celebration.css) | Seasonal end-game particle effects |
+| [halloween.css](halloween.css) / [seasons.css](seasons.css) | Per-theme color variables and decoration |
 
 ---
 
@@ -107,26 +119,22 @@ supabase db push
 
 ### Tables
 
+Actively used by the current frontend:
+
 | Table | Purpose |
 |-------|---------|
-| `app_settings` | Admin code, app name |
-| `players` | Persistent player roster (global) |
-| `profiles` | Auth user → player identity + last group |
-| `groups` | Persistent named player groups |
-| `group_members` | Group ↔ player membership |
-| `game_rooms` | Live game sessions (scoped to a group) |
-| `game_players` | Players in a specific game |
-| `round_scores` | Per-round scores |
-| `game_history` | Completed game summaries (scoped to a group) |
+| `app_settings` | Admin code (server-side only), app name, support email, shared `theme_name` |
+| `players` | Persistent global player roster |
+| `game_rooms` | Live game sessions; `status` is `active` or `ended`, optional `room_password` |
+| `game_players` | Players in a specific game, with `joined_at_round` for leg tracking |
+| `round_scores` | Per-round scores. **Cascade-deletes with its `game_rooms` row** — gone once a room is admin-deleted, even though `game_history` survives |
+| `game_history` | Permanent completed-game summaries (survives room deletion; `game_id` is `ON DELETE SET NULL`, so delete the history row *before* the room when cleaning up, or it orphans with a null `game_id`) |
+
+`profiles`, `groups`, and `group_members` tables still exist in the database from an earlier auth/groups design but are unused by the current frontend — see `20260603000000_remove_auth.sql` for when that model was dropped in favor of anon-key access with optional per-room passwords.
 
 ### Migrations
 
-| File | What it does |
-|------|-------------|
-| `20260525000000_init_train_rummy.sql` | Core tables, RLS, seed players |
-| `20260525000001_auth.sql` | Profiles, magic-link auth, auth-gated policies |
-| `20260526000000_groups.sql` | Groups + group_members, group_id FKs, seed default group |
-| `20260526000001_fix_delete_policies.sql` | DELETE policies for players, game_rooms; UPDATE for game_history |
+Each migration is a separate timestamped file in [`supabase/migrations/`](supabase/migrations/) — filenames describe their own purpose. Always add a new file; never edit an existing one, even for a tiny fix.
 
 ---
 
@@ -139,21 +147,3 @@ git push
 ```
 
 GitHub Pages rebuilds automatically. The live URL is https://asinay.github.io/train-rummy/.
-
-## Seasonal themes
-
-Admin → App theme offers Classic, Halloween, Fall, and Winter. The selection is
-saved in Supabase and shared with all devices; open pages refresh it every five
-seconds. Game scores, room codes, history, and statistics use the existing data.
-
-End-game celebrations match the theme: confetti for Classic, leaves for Fall,
-snowflakes for Winter, and pumpkins, ghosts, and spiders for Halloween. Seasonal
-particles respect reduced-motion preferences and clean themselves up after use.
-
-Before deploying this version, apply
-`20261006000000_admin_seasonal_themes.sql` using `supabase db push`. It adds the
-shared theme setting, verifies the existing admin code through a server RPC,
-removes public access to the admin-code column, and requires the code for theme
-and support-email updates. Apply the migration and deploy the matching frontend
-together: older frontends use the previous settings permissions. No game data
-is migrated or reset. This retains the existing code-based admin model.
