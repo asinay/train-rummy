@@ -19,6 +19,10 @@ Thumbs.db
 linkedin-post.md
 make_ppt.py
 
+# Incoming PR bundles (patch + notes, not repo source)
+Train_Rummy_PR/
+Train_Rummy_PR.zip
+
 # Editors
 .vscode/
 .idea/

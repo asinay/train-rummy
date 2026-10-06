@@ -103,6 +103,7 @@ body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-ser
 .room-badge-inline{font-size:9px;font-weight:700;letter-spacing:1px;color:var(--amber);background:var(--amber-bg);border:1px solid #e8d4a0;border-radius:4px;padding:1px 5px;margin-left:3px}
 .hbtn{height:36px;padding:0 9px;background:var(--card2);border:1.5px solid var(--border);border-radius:8px;color:var(--text-2);font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:3px;white-space:nowrap;min-width:36px;justify-content:center}
 .hbtn:active{background:var(--border)}
+.hbtn:disabled{opacity:.5;cursor:wait}
 .hbtn.hbtn-add{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);font-weight:600;padding:0 11px;gap:5px}
 .hbtn.hbtn-add:active{background:#f0dfa0}
 .hbtn.hbtn-end{background:var(--red-bg);border-color:var(--red);color:var(--red);font-weight:600;padding:0 11px;gap:5px}

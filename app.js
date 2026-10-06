@@ -167,7 +167,8 @@ async function saveGameToHistory(winner, finalPlayers, numRounds) {
   if (histError) console.warn('game_history insert:', histError.message);
 
   if (currentGameId) {
-    await client.from('game_rooms').update({ status: 'ended' }).eq('id', currentGameId);
+    const { error: statusError } = await client.from('game_rooms').update({ status: 'ended' }).eq('id', currentGameId);
+    if (statusError) console.warn('game_rooms status update:', statusError.message);
   }
 }
 
@@ -755,26 +756,45 @@ async function removePlayerFromGame(playerId, playerName, rowEl) {
 
 // ── End Game / Winner ──────────────────────────────────────────────────────
 
+let endingGame = false;
 async function endGame() {
-  if (!rounds.length) {
+  if (endingGame) return;
+  endingGame = true;
+  document.getElementById('end-btn')?.setAttribute('disabled', 'true');
+  try {
+    if (!rounds.length) {
+      const client = getSupabase();
+      if (currentGameId) {
+        await client.from('game_rooms').delete({ count: 'exact' }).eq('id', currentGameId);
+        currentGameId = null;
+        currentRoom = null;
+      }
+      clearSession();
+      showScreen('setup');
+      return;
+    }
     const client = getSupabase();
+    let alreadyEnded = false;
     if (currentGameId) {
-      await client.from('game_rooms').delete({ count: 'exact' }).eq('id', currentGameId);
-      currentGameId = null;
-      currentRoom = null;
+      const { data: room } = await client.from('game_rooms').select('status').eq('id', currentGameId).single();
+      alreadyEnded = room?.status === 'ended';
+    }
+    const sorted = [...players].map((p, i) => ({ ...p, i })).sort((a, b) => b.total - a.total);
+    if (alreadyEnded) {
+      showToast('This game already ended on another device');
+    } else {
+      try {
+        await saveGameToHistory(sorted[0], players, rounds.length);
+      } catch (e) {
+        console.error('saveGameToHistory failed:', e);
+      }
     }
     clearSession();
-    showScreen('setup');
-    return;
+    showWinner();
+  } finally {
+    endingGame = false;
+    document.getElementById('end-btn')?.removeAttribute('disabled');
   }
-  const sorted = [...players].map((p, i) => ({ ...p, i })).sort((a, b) => b.total - a.total);
-  try {
-    await saveGameToHistory(sorted[0], players, rounds.length);
-  } catch (e) {
-    console.error('saveGameToHistory failed:', e);
-  }
-  clearSession();
-  showWinner();
 }
 
 function showWinner() {
@@ -1231,11 +1251,16 @@ async function adminDeleteRoom(roomId, roomCode, btn) {
     return;
   }
   const client = getSupabase();
+  // game_history.game_id is ON DELETE SET NULL, so it must be cleared before the
+  // room row is gone - otherwise this delete-by-game_id matches nothing afterward.
+  await client.from('game_history').delete().eq('game_id', roomId);
   const { error, count } = await client.from('game_rooms').delete({ count: 'exact' }).eq('id', roomId);
   if (error || count === 0) { showToast('Could not delete room'); btn.textContent = 'Delete'; delete btn.dataset.confirm; return; }
   document.getElementById(`admin-room-${roomId}`)?.remove();
   if (currentGameId === roomId) { currentRoom = null; currentGameId = null; clearSession(); }
   showToast(`${roomCode} deleted`);
+  _cachedHistory = null;
+  renderAdminHistory();
 }
 
 async function renderAdminHistory() {
