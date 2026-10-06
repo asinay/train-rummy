@@ -1489,7 +1489,7 @@ async function renderAdminHistory() {
   const client = getSupabase();
   const { data: history } = await client
     .from('game_history')
-    .select('id, room_code, winner_name, played_at, player_names')
+    .select('id, game_id, room_code, winner_name, played_at, player_names')
     .order('played_at', { ascending: false })
     .limit(30);
 
@@ -1506,12 +1506,12 @@ async function renderAdminHistory() {
         <div class="admin-item-name">${h.winner_name} won · ${date}</div>
         <div class="admin-item-meta">${h.room_code} · ${(h.player_names || []).join(', ')}</div>
       </div>
-      <button class="admin-del-btn" onclick="adminDeleteHistory('${h.id}', this)">Delete</button>`;
+      <button class="admin-del-btn" onclick="adminDeleteHistory('${h.id}', ${h.game_id ? `'${h.game_id}'` : 'null'}, this)">Delete</button>`;
     el.appendChild(item);
   });
 }
 
-async function adminDeleteHistory(histId, btn) {
+async function adminDeleteHistory(histId, gameId, btn) {
   if (btn.dataset.confirm !== '1') {
     btn.textContent = 'Sure?';
     btn.dataset.confirm = '1';
@@ -1521,9 +1521,12 @@ async function adminDeleteHistory(histId, btn) {
   const client = getSupabase();
   const { error, count } = await client.from('game_history').delete({ count: 'exact' }).eq('id', histId);
   if (error || count === 0) { showToast('Could not delete entry'); btn.textContent = 'Delete'; delete btn.dataset.confirm; return; }
+  // Clean up the matching room too, so deleting from either side always leaves nothing orphaned.
+  if (gameId) await client.from('game_rooms').delete().eq('id', gameId);
   document.getElementById(`admin-hist-${histId}`)?.remove();
   showToast('Entry deleted');
   _cachedHistory = null;
+  renderAdminRooms();
 }
 
 function showResetConfirm() {

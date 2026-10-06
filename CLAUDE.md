@@ -82,6 +82,8 @@ Every table needs explicit DELETE (and UPDATE) policies — the default is deny.
 
 `game_history.game_id references game_rooms(id) on delete set null` — when deleting both a room and its history row (e.g. admin cascade-delete), **delete `game_history` first**. Delete the room first and Postgres nulls `game_id` out from under you before your own `.eq('game_id', roomId)` delete runs, orphaning the history row with no error raised. (Found and fixed exactly this bug in `adminDeleteRoom` — see git history.)
 
+Admin → Rooms and Admin → History are both wired to clean up the other side: `adminDeleteRoom` deletes the matching `game_history` row (if any) before the room, and `adminDeleteHistory` deletes the matching `game_rooms` row (if `game_id` is non-null) after the history row. Deleting from either screen always leaves nothing orphaned on the other side.
+
 ### Admin panel
 
 Accessed via the ⚙️ button on the home screen. The code itself lives only in `app_settings.admin_code` (never sent to clients); `checkAdminAuth()` calls the `verify_admin_code` RPC, and theme/support-email writes go through `update_admin_settings`, both added in `20261006000000_admin_seasonal_themes.sql`. The entered code is cached in the `adminSessionCode` global for the rest of the session and passed to subsequent admin RPC calls; it's cleared on `closeAdmin()`.
