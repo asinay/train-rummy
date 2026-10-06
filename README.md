@@ -139,3 +139,21 @@ git push
 ```
 
 GitHub Pages rebuilds automatically. The live URL is https://asinay.github.io/train-rummy/.
+
+## Seasonal themes
+
+Admin → App theme offers Classic, Halloween, Fall, and Winter. The selection is
+saved in Supabase and shared with all devices; open pages refresh it every five
+seconds. Game scores, room codes, history, and statistics use the existing data.
+
+End-game celebrations match the theme: confetti for Classic, leaves for Fall,
+snowflakes for Winter, and pumpkins, ghosts, and spiders for Halloween. Seasonal
+particles respect reduced-motion preferences and clean themselves up after use.
+
+Before deploying this version, apply
+`20261006000000_admin_seasonal_themes.sql` using `supabase db push`. It adds the
+shared theme setting, verifies the existing admin code through a server RPC,
+removes public access to the admin-code column, and requires the code for theme
+and support-email updates. Apply the migration and deploy the matching frontend
+together: older frontends use the previous settings permissions. No game data
+is migrated or reset. This retains the existing code-based admin model.

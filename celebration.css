@@ -1,0 +1,8 @@
+.celebration-layer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:600;contain:strict}
+.celebration-particle{position:absolute;top:-50px;left:var(--x);font-size:var(--size);line-height:1;user-select:none;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',serif;filter:drop-shadow(0 2px 3px #0002);animation:seasonal-celebration var(--duration) ease-in var(--delay) both;will-change:transform}
+.celebration-winter .celebration-particle{color:#4685ad;text-shadow:0 0 2px #fff;filter:drop-shadow(0 1px 2px #255d7c35);animation-timing-function:linear}
+.celebration-fall .celebration-particle{filter:drop-shadow(0 2px 3px #8b4a2525)}
+.celebration-halloween .celebration-particle{filter:drop-shadow(0 0 5px #ffad5540)}
+@keyframes seasonal-celebration{0%{opacity:0;transform:translate3d(0,-20px,0) rotate(var(--angle))}8%{opacity:1}45%{transform:translate3d(calc(var(--drift) * -.3),48vh,0) rotate(var(--angle));opacity:1}90%{opacity:1}100%{opacity:0;transform:translate3d(var(--drift),calc(100vh + 100px),0) rotate(var(--spin))}}
+.celebration-still .celebration-particle{animation:none;will-change:auto;opacity:.85}
+@media(prefers-reduced-motion:reduce){.celebration-particle{animation:none;will-change:auto}}

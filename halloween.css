@@ -1,0 +1,67 @@
+/* Theme-only layer: game data and score calculations are independent. */
+.theme-bar{position:sticky;top:0;z-index:80;min-height:54px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px max(12px,env(safe-area-inset-left));background:var(--surface);border-bottom:1px solid var(--border);color:var(--text-3);font-size:11px;letter-spacing:.3px}
+.theme-caption{font-weight:600}
+#theme-switch{display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 10px;background:var(--card2);border:1px solid var(--border-strong);border-radius:24px;color:var(--text);font:600 12px 'IBM Plex Sans',sans-serif;cursor:pointer;white-space:nowrap}
+.theme-switch-track{width:27px;height:16px;border-radius:20px;background:var(--border-strong);position:relative}
+.theme-switch-track::after{content:'';position:absolute;top:3px;left:3px;width:10px;height:10px;border-radius:50%;background:var(--surface)}
+[data-theme=halloween] .theme-switch-track{background:var(--amber)}
+[data-theme=halloween] .theme-switch-track::after{left:14px;background:#211128}
+#theme-switch:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+.game-hdr,.stats-hdr{top:54px}
+.screen{min-height:calc(100svh - 54px)}
+.haunt-frame,.seasonal-banner,.haunted-train{display:none}
+[data-theme=halloween]{color-scheme:dark;--bg:#150d20;--surface:#241631;--card2:#2e1d3d;--border:#543761;--border-strong:#82509b;--amber:#ffad55;--amber-bg:#40243a;--red:#ff9d9d;--red-bg:#482235;--green:#a3e484;--green-bg:#233c32;--text:#fff1df;--text-2:#eedcf5;--text-3:#cfb7da;--text-4:#b59ac9;--shadow-sm:0 2px 10px #08031155,0 0 0 1px #ffad5508;--shadow-md:0 10px 35px #080311b3}
+[data-theme=halloween] body{background:radial-gradient(ellipse at 85% 15%,#48244888,transparent 45%),radial-gradient(ellipse at 15% 90%,#74371933,transparent 50%),var(--bg)}
+[data-theme=halloween] #setup{background:radial-gradient(ellipse at 50% 0%,#71422f40,transparent 50%),radial-gradient(ellipse at 15% 55%,#67429825,transparent 55%),var(--bg);padding-top:35px}
+[data-theme=halloween] .theme-bar{background:#1a1026f5;box-shadow:0 1px 18px #f28a2722}
+[data-theme=halloween] .theme-caption{color:#e4c7ec}
+[data-theme=halloween] .logo,[data-theme=halloween] .game-title{color:#ffb25f;text-shadow:0 0 24px #ff883c44}
+[data-theme=halloween] .logo-sub{letter-spacing:2.1px;margin-top:12px}
+[data-theme=halloween] .seasonal-banner{display:flex;gap:10px;align-items:center;margin:12px 0 15px;color:#bba3d7;font-size:20px}
+[data-theme=halloween] .seasonal-banner span{font-size:12px;font-style:italic;letter-spacing:.5px}
+[data-theme=halloween] .suits{color:#caacd8;margin-bottom:25px}
+[data-theme=halloween] .suits .r{color:#ffab5f}
+[data-theme=halloween] .start-btn,[data-theme=halloween] .rec-btn,[data-theme=halloween] .room-btn,[data-theme=halloween] .win-btn:not(.sec){background:linear-gradient(135deg,#e56b29,#ffae55);color:#24132c;box-shadow:0 4px 18px #fb832630}
+[data-theme=halloween] .start-btn::before{content:'🎃 ';font-size:21px}
+[data-theme=halloween] .rec-btn::before{content:'🕸️ ';font-size:16px}
+[data-theme=halloween] .player-chip.selected{background:#59313e;border-color:#ffad55;color:#ffd092;box-shadow:0 0 14px #ffad5518}
+[data-theme=halloween] .player-chip.selected::before{content:'🦇';margin-right:6px;font-size:13px}
+[data-theme=halloween] .p-row.leader{background:linear-gradient(100deg,#40253b,#241631);box-shadow:0 0 18px #ffad5518}
+[data-theme=halloween] .p-row.leader .p-name::before{content:'🎃 ';font-size:16px}
+[data-theme=halloween] .stat-sec-title::before{content:'🦇 ';font-size:12px}
+[data-theme=halloween] .ep-title::before{content:'🧙 ';font-size:15px}
+[data-theme=halloween] .sheet-ttl::before{content:'🕸️ ';font-size:18px}
+[data-theme=halloween] .hist-title::before{content:'🕯️ '}
+[data-theme=halloween] .sheet{border:1px solid #704389;box-shadow:0 -6px 35px #0a0312aa}
+[data-theme=halloween] .overlay{background:#0d0616b8}
+[data-theme=halloween] .e-inp{color:var(--text);background:var(--surface)}
+[data-theme=halloween] .sync-dot{background:#b9f18d;box-shadow:0 0 7px #b9f18866}
+[data-theme=halloween] .toast{background:#ffa755;color:#22132d;box-shadow:0 4px 20px #08031199;white-space:normal}
+[data-theme=halloween] .toast::before{content:'👻 ';font-size:16px}
+[data-theme=halloween] .win-t{font-size:0;line-height:1}
+[data-theme=halloween] .win-t::after{content:'🎃';display:block;font-size:70px;filter:drop-shadow(0 0 18px #ff882e77)}
+[data-theme=halloween] .win-crown{filter:drop-shadow(0 0 8px #ffad5566)}
+[data-theme=halloween] .haunted-train{display:inline}
+[data-theme=halloween] .classic-train{display:none}
+[data-theme=halloween] .empty-state::before{content:'👻';display:block;font-size:34px;margin-bottom:12px}
+[data-theme=halloween] .t-card,[data-theme=halloween] .p-row,[data-theme=halloween] .entry-panel,[data-theme=halloween] .stat-card,[data-theme=halloween] .sheet,[data-theme=halloween] .e-card{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90' viewBox='0 0 90 90'%3E%3Cg fill='none' stroke='%23e3b8ef' stroke-width='.6' opacity='.12'%3E%3Cpath d='M90 0L0 0M90 0L0 90M90 0L90 90M90 0L45 90M90 0L0 45M67 0Q67 23 90 23M44 0Q44 46 90 46M22 0Q22 68 90 68M0 0Q0 90 90 90'/%3E%3C/g%3E%3C/svg%3E");background-position:top right;background-repeat:no-repeat}
+[data-theme=halloween] .haunt-frame{display:block;position:fixed;inset:54px 0 0;pointer-events:none;z-index:90;overflow:hidden}
+.haunt-web{position:absolute;width:80px;height:80px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%23ddb8ec' stroke-width='.9'%3E%3Cpath d='M0 0L100 0M0 0L0 100M0 0L100 100M0 0L100 50M0 0L50 100M24 0Q24 24 0 24M48 0Q48 48 0 48M72 0Q72 72 0 72M96 0Q96 96 0 96'/%3E%3C/g%3E%3C/svg%3E") no-repeat;opacity:.32}
+.haunt-web.tl{top:0;left:0}.haunt-web.tr{top:0;right:0;transform:rotate(90deg)}.haunt-web.bl{bottom:0;left:0;transform:rotate(-90deg)}.haunt-web.br{bottom:0;right:0;transform:rotate(180deg)}
+.hanging-spider{position:absolute;top:42px;right:8px;font-size:22px;transform-origin:50% -44px;animation:spider-sway 7s ease-in-out infinite}
+.hanging-spider::before{content:'';position:absolute;top:-44px;left:50%;height:44px;border-left:1px solid #dab1ea66}
+.corner-pumpkin{position:absolute;bottom:max(5px,env(safe-area-inset-bottom));left:6px;font-size:22px;opacity:.6}
+.corner-ghost{position:absolute;bottom:max(5px,env(safe-area-inset-bottom));right:7px;font-size:22px;opacity:.6}
+@keyframes spider-sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@media(min-width:700px){.theme-bar{padding-left:24px;padding-right:24px}.haunt-web{width:130px;height:130px}.hanging-spider{right:25px;font-size:30px}.corner-pumpkin,.corner-ghost{font-size:35px}}
+@media(max-width:370px){.theme-caption{font-size:10px}.theme-bar{gap:5px;padding:8px}.theme-switch-track{display:none}#theme-switch{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.hanging-spider{animation:none}[data-theme=halloween] #train-car{animation-duration:.01ms}}
+[data-theme=halloween] .e-inp:focus{background:#382346;border-color:#ffc177;box-shadow:0 0 0 2px #ffad5522}
+[data-theme=halloween] .e-inp.neg,[data-theme=halloween] .e-inp.invalid{color:var(--red)}
+[data-theme=halloween] .dealer-tag{color:#29162c;box-shadow:0 0 12px #ffad5522}
+[data-theme=halloween] .dealer-tag::before{content:'🧙';font-size:13px}
+[data-theme=halloween] .room-badge-inline,[data-theme=halloween] .room-badge{border-color:#925568;color:#ffd098}
+[data-theme=halloween] .add-player-btn:hover,[data-theme=halloween] .t-card:hover{border-color:#ffad55;background-color:#40243a}
+.theme-status{font-size:11px;color:var(--text-3);white-space:nowrap}
+.admin-theme-section{padding-bottom:18px;border-bottom:1px solid var(--border)}
+#theme-switch:disabled{opacity:.65;cursor:wait}

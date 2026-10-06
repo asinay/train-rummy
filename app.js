@@ -10,7 +10,7 @@ const RULES = [
 
 // ── State ──────────────────────────────────────────────────────────────────
 let sb = null;
-let adminCode = 'asaf';
+let adminSessionCode = null;
 let supportEmail = '';
 
 // players = [{id, name, total}] for current game
@@ -201,8 +201,7 @@ async function loadHistory() {
 async function loadAppSettings() {
   try {
     const client = getSupabase();
-    const { data } = await client.from('app_settings').select('admin_code, support_email').single();
-    if (data?.admin_code) adminCode = data.admin_code.toLowerCase();
+    const { data } = await client.from('app_settings').select('support_email').single();
     if (data?.support_email) { supportEmail = data.support_email; renderFeedbackLink(); }
   } catch (e) {}
 }
@@ -315,10 +314,13 @@ function playTrainAnimation() {
 function playConfetti() {
   const crown = document.getElementById('win-crown');
   if (crown) { crown.classList.remove('animate'); void crown.offsetWidth; crown.classList.add('animate'); }
+  if (typeof playThemedCelebration==='function' && playThemedCelebration(document.documentElement.dataset.theme)) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (typeof confetti !== 'function') return;
-  confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 }, colors: ['#b07a20','#1b6e3f','#b52a1f','#f5f0e8','#ffffff'] });
-  setTimeout(() => confetti({ particleCount: 60, spread: 120, origin: { y: 0.4 }, angle: 60 }), 350);
-  setTimeout(() => confetti({ particleCount: 60, spread: 120, origin: { y: 0.4 }, angle: 120 }), 700);
+  const colors=({halloween:['#ffad55','#e87532','#aa75d4','#a3e484','#fff1df'],fall:['#9b471f','#df873a','#c49a43','#6d783b','#f9e6c5'],winter:['#74b9d5','#35658f','#d8edf7','#8ebda9','#ffffff']})[document.documentElement.dataset.theme]||['#b07a20','#1b6e3f','#b52a1f','#f5f0e8','#ffffff'];
+  confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 }, colors });
+  setTimeout(() => confetti({ particleCount: 60, spread: 120, origin: { y: 0.4 }, angle: 60, colors }), 350);
+  setTimeout(() => confetti({ particleCount: 60, spread: 120, origin: { y: 0.4 }, angle: 120, colors }), 700);
 }
 
 // ── Screen routing ─────────────────────────────────────────────────────────
@@ -1071,14 +1073,14 @@ function openAdmin() {
   document.getElementById('admin-panel').style.display = 'none';
   document.getElementById('admin-overlay').style.display = 'flex';
 }
-function closeAdmin() { document.getElementById('admin-overlay').style.display = 'none'; }
+function closeAdmin() { adminSessionCode = null; document.getElementById('admin-overlay').style.display = 'none'; }
 function maybeCloseAdmin(e) { if (e.target === document.getElementById('admin-overlay')) closeAdmin(); }
 
 async function saveAdminSupportEmail() {
   const inp = document.getElementById('admin-support-email');
   const msg = document.getElementById('admin-support-email-msg');
   const email = inp.value.trim();
-  const { error } = await getSupabase().from('app_settings').update({ support_email: email }).neq('id', '00000000-0000-0000-0000-000000000000');
+  const { error } = await getSupabase().rpc('update_admin_settings', {p_admin_code:adminSessionCode,p_support_email:email});
   if (error) {
     msg.textContent = 'Could not save.'; msg.style.color = 'var(--red)'; msg.style.display = 'block';
   } else {
@@ -1090,7 +1092,9 @@ async function saveAdminSupportEmail() {
 
 async function checkAdminAuth() {
   const val = document.getElementById('admin-code-inp').value.trim().toLowerCase();
-  if (val === adminCode) {
+  const { data: valid, error } = await getSupabase().rpc('verify_admin_code', {p_code:val});
+  if (!error && valid) {
+    adminSessionCode = val;
     document.getElementById('admin-lock').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'flex';
     await loadAdminData();
@@ -1100,6 +1104,7 @@ async function checkAdminAuth() {
 }
 
 async function loadAdminData() {
+  await refreshSharedTheme();
   const emailInp = document.getElementById('admin-support-email');
   if (emailInp) emailInp.value = supportEmail;
   await Promise.all([renderAdminPlayers(), renderAdminRooms(), renderAdminHistory()]);
