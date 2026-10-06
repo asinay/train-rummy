@@ -873,12 +873,16 @@ function newGame() {
 
 // ── Stats ──────────────────────────────────────────────────────────────────
 
-let statsHistoryExpanded = false;
-let statsBestsExpanded = false;
-const STATS_HISTORY_INITIAL = 10;
-const STATS_BESTS_INITIAL = 3;
+let _playerRivals = [];
+let playerRivalsExpanded = false;
+const PLAYER_RIVALS_INITIAL = 5;
 
-function showStats() { statsHistoryExpanded = false; statsBestsExpanded = false; _cachedHistory = null; showScreen('stats'); }
+let statsHistoryExpanded = false;
+let statsLeaderExpanded = false;
+const STATS_HISTORY_INITIAL = 10;
+const STATS_LEADER_INITIAL = 3;
+
+function showStats() { statsHistoryExpanded = false; statsLeaderExpanded = false; _cachedHistory = null; showScreen('stats'); }
 
 async function renderStats() {
   const body = document.getElementById('stats-body');
@@ -889,12 +893,26 @@ async function renderStats() {
     return;
   }
 
+  body.innerHTML = `
+    <div class="stat-section" id="leaderboard-section"></div>
+    <div class="stat-section" id="history-section"></div>`;
+
+  renderLeaderboardSection(history);
+  renderHistorySection(history);
+}
+
+function computeLeaderboard(history) {
   const pmap = {};
   const ensure = name => {
-    if (!pmap[name]) pmap[name] = { name, games: 0, legWins: 0, legsPlayed: 0, roundWins: 0, totalRounds: 0, totalScore: 0 };
+    if (!pmap[name]) pmap[name] = { name, games: 0, legWins: 0, legsPlayed: 0, roundWins: 0, totalRounds: 0, totalScore: 0, best: -Infinity };
   };
   history.forEach(g => {
-    g.players.forEach(p => { ensure(p.name); pmap[p.name].games++; pmap[p.name].totalScore += p.total; });
+    g.players.forEach(p => {
+      ensure(p.name);
+      pmap[p.name].games++;
+      pmap[p.name].totalScore += p.total;
+      if (p.total > pmap[p.name].best) pmap[p.name].best = p.total;
+    });
     const legs = g.legs || [{ winner: g.winner, rounds: g.rounds, players: g.players.map(p => ({ name: p.name, roundWins: p.roundWins || 0 })) }];
     legs.forEach(leg => {
       (leg.players || []).forEach(p => {
@@ -907,79 +925,57 @@ async function renderStats() {
     });
   });
 
-  const allPlayers = Object.values(pmap).map(p => ({
+  return Object.values(pmap).map(p => ({
     ...p,
     lwPct: p.legsPlayed ? Math.round(100 * p.legWins / p.legsPlayed) : 0,
     rwPct: p.totalRounds ? Math.round(100 * p.roundWins / p.totalRounds) : 0,
     avgPerRound: p.totalRounds ? Math.round(p.totalScore / p.totalRounds) : 0,
   })).sort((a, b) => b.lwPct - a.lwPct || b.rwPct - a.rwPct || b.avgPerRound - a.avgPerRound);
+}
+
+function renderLeaderboardSection(history) {
+  const section = document.getElementById('leaderboard-section');
+  if (!section) return;
+
+  const allPlayers = computeLeaderboard(history);
+  const visible = statsLeaderExpanded ? allPlayers : allPlayers.slice(0, STATS_LEADER_INITIAL);
+  const hasMore = allPlayers.length > STATS_LEADER_INITIAL;
 
   const medals = ['🥇', '🥈', '🥉'];
-  const leaderRows = allPlayers.map((p, i) => `
-    <div class="stat-row">
+  const leaderRows = visible.map((p, i) => `
+    <div class="stat-row stat-row-tap" onclick="openPlayerStats('${p.name.replace(/'/g, "\\'")}')">
       <div class="stat-medal">${medals[i] || ''}</div>
       <div class="stat-name">${p.name}</div>
       <div class="stat-vals">
         <div class="stat-main">${p.lwPct}% <span style="font-size:13px;color:var(--text-3)">legs won</span></div>
         <div class="stat-sub">${p.legWins} 🏆 / ${p.legsPlayed} leg${p.legsPlayed !== 1 ? 's' : ''} · ${p.games} game${p.games !== 1 ? 's' : ''}</div>
         <div class="stat-sub">${p.rwPct}% rounds won · avg ${p.avgPerRound >= 0 ? '+' : ''}${p.avgPerRound}/round</div>
+        <div class="stat-sub">Best game: ${p.best} pts</div>
       </div>
+      <div class="stat-chevron">›</div>
     </div>`).join('');
 
-  body.innerHTML = `
-    <div class="stat-section"><div class="stat-sec-title">Leaderboard — ${history.length} game${history.length !== 1 ? 's' : ''} · ranked by leg wins</div><div class="stat-card">${leaderRows}</div></div>
-    <div class="stat-section" id="bests-section"></div>
-    <div class="stat-section"><button class="rec-btn" style="width:100%" onclick="exportHistoryJson()">↓ Export game history (JSON)</button></div>
-    <div class="stat-section" id="history-section"></div>`;
-
-  renderBestsSection(history);
-  renderHistorySection(history);
-}
-
-function renderBestsSection(history) {
-  const section = document.getElementById('bests-section');
-  if (!section) return;
-
-  const bestMap = {};
-  history.forEach(g => {
-    g.players.forEach(p => {
-      if (!(p.name in bestMap) || p.total > bestMap[p.name]) bestMap[p.name] = p.total;
-    });
-  });
-  const bests = Object.entries(bestMap)
-    .map(([name, best]) => ({ name, best }))
-    .sort((a, b) => b.best - a.best);
-
-  const visible = statsBestsExpanded ? bests : bests.slice(0, STATS_BESTS_INITIAL);
-  const hasMore = bests.length > STATS_BESTS_INITIAL;
-
-  const bestRows = visible.map(p => `
-    <div class="stat-row">
-      <div class="stat-name">${p.name}</div>
-      <div class="gh-pts">${p.best} pts</div>
-    </div>`).join('');
-
-  const showMoreBtn = (!statsBestsExpanded && hasMore)
-    ? `<button onclick="expandStatsBests()" style="width:100%;padding:14px;background:none;border:none;color:var(--amber);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show all ${bests.length} players ▾</button>`
-    : (statsBestsExpanded && hasMore)
-    ? `<button onclick="collapseStatsBests()" style="width:100%;padding:14px;background:none;border:none;color:var(--text-4);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show less ▴</button>`
+  const showMoreBtn = (!statsLeaderExpanded && hasMore)
+    ? `<button onclick="expandStatsLeaderboard()" style="width:100%;padding:14px;background:none;border:none;color:var(--amber);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show all ${allPlayers.length} players ▾</button>`
+    : (statsLeaderExpanded && hasMore)
+    ? `<button onclick="collapseStatsLeaderboard()" style="width:100%;padding:14px;background:none;border:none;color:var(--text-4);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show less ▴</button>`
     : '';
 
   section.innerHTML = `
-    <div class="stat-sec-title">Personal Bests</div>
-    <div class="stat-card">${bestRows}${showMoreBtn}</div>`;
+    <div class="stat-sec-title">Leaderboard — ${history.length} game${history.length !== 1 ? 's' : ''} · ranked by leg wins</div>
+    <div class="stat-card">${leaderRows}${showMoreBtn}</div>`;
 }
 
-async function expandStatsBests() {
-  statsBestsExpanded = true;
+async function expandStatsLeaderboard() {
+  statsLeaderExpanded = true;
   if (!_cachedHistory) _cachedHistory = await loadHistory();
-  renderBestsSection(_cachedHistory);
+  renderLeaderboardSection(_cachedHistory);
 }
 
-async function collapseStatsBests() {
-  statsBestsExpanded = false;
+async function collapseStatsLeaderboard() {
+  statsLeaderExpanded = false;
   if (!_cachedHistory) _cachedHistory = await loadHistory();
-  renderBestsSection(_cachedHistory);
+  renderLeaderboardSection(_cachedHistory);
 }
 
 async function exportHistoryJson() {
@@ -994,6 +990,167 @@ async function exportHistoryJson() {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+// ── Player detail stats ─────────────────────────────────────────────────────
+
+async function openPlayerStats(name) {
+  const el = document.getElementById('player-stats-overlay');
+  const body = document.getElementById('player-stats-body');
+  const title = document.getElementById('player-stats-title');
+  title.textContent = name;
+  body.innerHTML = '<div class="empty-state">Loading…</div>';
+  el.style.display = 'flex';
+
+  if (!_cachedHistory) _cachedHistory = await loadHistory();
+  const games = _cachedHistory
+    .filter(g => g.players.some(p => p.name === name))
+    .sort((a, b) => a.ts - b.ts);
+
+  if (!games.length) { body.innerHTML = '<div class="empty-state">No games found.</div>'; return; }
+
+  let legsPlayed = 0, legWins = 0, roundsPlayed = 0, roundWins = 0;
+  const trend = [];
+  const legOutcomes = []; // chronological win/loss per leg played
+  const h2h = {}; // opponent name -> { wins, losses, ties }
+
+  games.forEach(g => {
+    const legs = (g.legs && g.legs.length)
+      ? g.legs
+      : [{ winner: g.winner, rounds: g.rounds, players: g.players.map(p => ({ name: p.name, legTotal: p.total, roundWins: 0 })) }];
+    legs.forEach(leg => {
+      const pl = (leg.players || []).find(p => p.name === name);
+      if (!pl) return;
+      legsPlayed++;
+      const won = leg.winner === name;
+      if (won) legWins++;
+      legOutcomes.push(won);
+      roundsPlayed += (leg.rounds || 0);
+      roundWins += (pl.roundWins || 0);
+
+      (leg.players || []).forEach(opp => {
+        if (opp.name === name) return;
+        if (!h2h[opp.name]) h2h[opp.name] = { wins: 0, losses: 0, ties: 0 };
+        if (pl.legTotal > opp.legTotal) h2h[opp.name].wins++;
+        else if (pl.legTotal < opp.legTotal) h2h[opp.name].losses++;
+        else h2h[opp.name].ties++;
+      });
+    });
+    const me = g.players.find(p => p.name === name);
+    trend.push({ date: g.date, score: me.total });
+  });
+
+  const lwPct = legsPlayed ? Math.round(100 * legWins / legsPlayed) : 0;
+  const rwPct = roundsPlayed ? Math.round(100 * roundWins / roundsPlayed) : 0;
+  const roundsNotWon = Math.max(0, roundsPlayed - roundWins);
+
+  let streak = 0, streakWin = null;
+  for (let i = legOutcomes.length - 1; i >= 0; i--) {
+    if (streakWin === null) { streakWin = legOutcomes[i]; streak = 1; }
+    else if (legOutcomes[i] === streakWin) streak++;
+    else break;
+  }
+  const streakBadge = streak >= 2
+    ? `<div class="streak-badge ${streakWin ? 'hot' : 'cold'}">${streakWin ? '🔥' : '🧊'} ${streak}-leg ${streakWin ? 'win' : 'loss'} streak</div>`
+    : '';
+
+  _playerRivals = Object.entries(h2h)
+    .map(([opp, r]) => ({ name: opp, ...r, total: r.wins + r.losses + r.ties }))
+    .sort((a, b) => b.total - a.total || (b.wins - b.losses) - (a.wins - a.losses));
+  playerRivalsExpanded = false;
+
+  const recentTrend = trend.slice(-12);
+  const maxAbs = Math.max(1, ...recentTrend.map(t => Math.abs(t.score)));
+
+  const trendBars = recentTrend.map(t => {
+    const pct = Math.round(Math.abs(t.score) / maxAbs * 100);
+    const label = `${t.score > 0 ? '+' : ''}${t.score}`;
+    return `
+      <div class="trend-bar" onclick="this.classList.toggle('show-val')" title="${t.date}: ${label} pts">
+        <div class="trend-bar-pos"><div class="trend-bar-fill" style="height:${t.score > 0 ? pct : 0}%"></div></div>
+        <div class="trend-baseline"></div>
+        <div class="trend-bar-neg"><div class="trend-bar-fill neg" style="height:${t.score < 0 ? pct : 0}%"></div></div>
+        <div class="trend-bar-val">${label}</div>
+      </div>`;
+  }).join('');
+
+  const distMax = Math.max(1, roundWins, roundsNotWon);
+  const wonPct = Math.round(roundWins / distMax * 100);
+  const notWonPct = Math.round(roundsNotWon / distMax * 100);
+
+  body.innerHTML = `
+    <div class="stat-section" style="padding-top:0">
+      ${streakBadge}
+      <div class="pstat-tiles">
+        <div class="pstat-tile">
+          <div class="pstat-pct">${lwPct}%</div>
+          <div class="pstat-track"><div class="pstat-fill" style="width:${lwPct}%"></div></div>
+          <div class="stat-sub">Legs won · ${legWins}/${legsPlayed}</div>
+        </div>
+        <div class="pstat-tile">
+          <div class="pstat-pct">${rwPct}%</div>
+          <div class="pstat-track"><div class="pstat-fill" style="width:${rwPct}%"></div></div>
+          <div class="stat-sub">Rounds won · ${roundWins}/${roundsPlayed}</div>
+        </div>
+      </div>
+    </div>
+    <div class="stat-section">
+      <div class="stat-sec-title">Score trend — last ${recentTrend.length} game${recentTrend.length !== 1 ? 's' : ''}</div>
+      <div class="stat-card" style="padding:14px 10px 4px">
+        <div class="trend-chart">${trendBars}</div>
+        <div class="pstat-hint">Tap a bar for its score</div>
+      </div>
+    </div>
+    <div class="stat-section">
+      <div class="stat-sec-title">Round record</div>
+      <div class="stat-card" style="padding:14px">
+        <div class="diverging-row">
+          <div class="diverging-label">Won</div>
+          <div class="diverging-track"><div class="diverging-fill pos" style="width:${wonPct}%"></div></div>
+          <div class="diverging-count">${roundWins}</div>
+        </div>
+        <div class="diverging-row">
+          <div class="diverging-label">Not won</div>
+          <div class="diverging-track"><div class="diverging-fill neg" style="width:${notWonPct}%"></div></div>
+          <div class="diverging-count">${roundsNotWon}</div>
+        </div>
+      </div>
+    </div>
+    <div class="stat-section" id="rivals-section"></div>`;
+
+  renderRivalsSection();
+}
+
+function renderRivalsSection() {
+  const section = document.getElementById('rivals-section');
+  if (!section) return;
+
+  if (!_playerRivals.length) { section.innerHTML = ''; return; }
+
+  const visible = playerRivalsExpanded ? _playerRivals : _playerRivals.slice(0, PLAYER_RIVALS_INITIAL);
+  const hasMore = _playerRivals.length > PLAYER_RIVALS_INITIAL;
+
+  const rows = visible.map(r => `
+    <div class="rival-row">
+      <div class="rival-name">${r.name}</div>
+      <div class="rival-record">${r.wins}W – ${r.losses}L${r.ties ? ` – ${r.ties}T` : ''}</div>
+    </div>`).join('');
+
+  const showMoreBtn = (!playerRivalsExpanded && hasMore)
+    ? `<button onclick="expandPlayerRivals()" style="width:100%;padding:14px;background:none;border:none;color:var(--amber);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show all ${_playerRivals.length} rivals ▾</button>`
+    : (playerRivalsExpanded && hasMore)
+    ? `<button onclick="collapsePlayerRivals()" style="width:100%;padding:14px;background:none;border:none;color:var(--text-4);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Show less ▴</button>`
+    : '';
+
+  section.innerHTML = `
+    <div class="stat-sec-title">Head-to-head</div>
+    <div class="stat-card" style="padding:4px 14px">${rows}${showMoreBtn}</div>`;
+}
+
+function expandPlayerRivals() { playerRivalsExpanded = true; renderRivalsSection(); }
+function collapsePlayerRivals() { playerRivalsExpanded = false; renderRivalsSection(); }
+
+function closePlayerStats() { document.getElementById('player-stats-overlay').style.display = 'none'; }
+function maybeClosePlayerStats(e) { if (e.target === document.getElementById('player-stats-overlay')) closePlayerStats(); }
 
 function renderHistorySection(history) {
   const section = document.getElementById('history-section');
