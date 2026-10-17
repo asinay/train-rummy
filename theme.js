@@ -1,8 +1,8 @@
 (function(){
  const root=document.documentElement;
  let current='classic',busy=false,refreshing=false;
- const themes={classic:{name:'Classic',color:'#f5f0e8'},halloween:{name:'🎃 Halloween',color:'#150d20'},fall:{name:'🍂 Fall',color:'#f6eddd'},winter:{name:'❄️ Winter',color:'#edf5fa'}};
- const seasonalLabels={fall:['🍂 The Autumn Express','🍁 Train Rummy','All aboard the Autumn Express','🍂 Train Rummy · Autumn Ride','🍁 All-Time Stats','Last stop: a golden autumn victory!'],winter:['❄️ The Snowbound Express','❄️ Train Rummy','All aboard the Snowbound Express','❄️ Train Rummy · Snow Ride','⛄ All-Time Stats','Last stop: a winter wonder-win!']};
+ const themes={classic:{name:'Classic',color:'#f5f0e8'},halloween:{name:'🎃 Halloween',color:'#150d20'},fall:{name:'🍂 Fall',color:'#f6eddd'},winter:{name:'❄️ Winter',color:'#edf5fa'},rain:{name:'🌧️ Rain',color:'#102638'},thanksgiving:{name:'🦃 Thanksgiving',color:'#f8eedc'}};
+ const seasonalLabels={thanksgiving:['🦃 The Grateful Express','🦃 Train Rummy','All aboard the Grateful Express','🦃 Train Rummy · Harvest Ride','🥧 All-Time Stats','Last stop: a victory worth sharing!'],rain:['🌧️ The Rainy Express','🌧️ Train Rummy','All aboard the Rainy Express','🌧️ Train Rummy · Rainy Ride','☔ All-Time Stats','Last stop: a silver-lining victory!'],fall:['🍂 The Autumn Express','🍁 Train Rummy','All aboard the Autumn Express','🍂 Train Rummy · Autumn Ride','🍁 All-Time Stats','Last stop: a golden autumn victory!'],winter:['❄️ The Snowbound Express','❄️ Train Rummy','All aboard the Snowbound Express','❄️ Train Rummy · Snow Ride','⛄ All-Time Stats','Last stop: a winter wonder-win!']};
  const selectors=['.theme-caption','.logo','.logo-sub','.game-title','.stats-ttl','.win-sub'];
  function resolve(data){return themes[data?.theme_name]?data.theme_name:('classic')}
  function apply(theme){
@@ -11,8 +11,8 @@
   document.querySelectorAll('[data-theme-choice]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.themeChoice===theme)));
   document.getElementById('theme-status').textContent=themes[theme].name+' edition';
   document.querySelector('meta[name="theme-color"]').content=themes[theme].color;
-  const banner=document.querySelector('.seasonal-banner');banner.textContent=theme==='fall'?'🍁 A cozy ride. A friendly rivalry. 🍂':theme==='winter'?'❄️ Warm hands. Cool cards. ☕':'🦇 Deal a little mischief. 🦇';
-  document.querySelector('.seasonal-train').textContent=theme==='fall'?'🍂 🚂 🍁 ☕':'❄️ 🚂 ⛄ 🌲';
+  const banner=document.querySelector('.seasonal-banner');banner.textContent=theme==='thanksgiving'?'🍁 Good company. Great cards. Grateful hearts. 🦃':theme==='rain'?'☔ Rain outside. Good cards inside. ☕':theme==='fall'?'🍁 A cozy ride. A friendly rivalry. 🍂':theme==='winter'?'❄️ Warm hands. Cool cards. ☕':'🦇 Deal a little mischief. 🦇';
+  document.querySelector('.seasonal-train').textContent=theme==='thanksgiving'?'🦃 🚂 🌽 🥧':theme==='rain'?'🌧️ 🚂 ☔ 💧':theme==='fall'?'🍂 🚂 🍁 ☕':'❄️ 🚂 ⛄ 🌲';
  }
  window.refreshSharedTheme=async function(){
   if(refreshing||busy)return;refreshing=true;

@@ -17,6 +17,8 @@
   <link rel="stylesheet" href="halloween.css?v=1">
   <link rel="stylesheet" href="seasons.css?v=1">
   <link rel="stylesheet" href="celebration.css?v=1">
+  <link rel="stylesheet" href="rain.css?v=1">
+  <link rel="stylesheet" href="thanksgiving.css?v=1">
   <meta name="theme-color" content="#f5f0e8">
   <script>document.documentElement.dataset.theme='classic'</script>
   <!-- ── CONFIG ── -->
@@ -233,7 +235,7 @@
       <div id="admin-error" style="font-size:13px;color:var(--red);display:none">Incorrect admin code.</div>
     </div>
     <div id="admin-panel" style="display:none;flex:1;overflow-y:auto;padding:20px 20px 40px;flex-direction:column;gap:24px">
-      <div class="admin-theme-section"><div class="field-label">🎨 App theme</div><p style="font-size:13px;color:var(--text-3);line-height:1.6;margin-bottom:12px">Choose the look for everyone. Scores and game history stay the same.</p><div class="theme-picker" role="group" aria-label="App theme"><button type="button" class="theme-option choice-classic" data-theme-choice="classic" aria-pressed="false" onclick="selectAdminTheme('classic')"><span>🚄</span><strong>Classic</strong><small>Warm &amp; familiar</small></button><button type="button" class="theme-option choice-halloween" data-theme-choice="halloween" aria-pressed="false" onclick="selectAdminTheme('halloween')"><span>🎃</span><strong>Halloween</strong><small>A haunted night ride</small></button><button type="button" class="theme-option choice-fall" data-theme-choice="fall" aria-pressed="false" onclick="selectAdminTheme('fall')"><span>🍂</span><strong>Fall</strong><small>A cozy autumn ride</small></button><button type="button" class="theme-option choice-winter" data-theme-choice="winter" aria-pressed="false" onclick="selectAdminTheme('winter')"><span>❄️</span><strong>Winter</strong><small>A snowy scenic ride</small></button></div><p id="theme-save-status" role="status" style="font-size:12px;color:var(--text-3);margin-top:10px"></p></div>
+      <div class="admin-theme-section"><div class="field-label">🎨 App theme</div><p style="font-size:13px;color:var(--text-3);line-height:1.6;margin-bottom:12px">Choose the look for everyone. Scores and game history stay the same.</p><div class="theme-picker" role="group" aria-label="App theme"><button type="button" class="theme-option choice-classic" data-theme-choice="classic" aria-pressed="false" onclick="selectAdminTheme('classic')"><span>🚄</span><strong>Classic</strong><small>Warm &amp; familiar</small></button><button type="button" class="theme-option choice-halloween" data-theme-choice="halloween" aria-pressed="false" onclick="selectAdminTheme('halloween')"><span>🎃</span><strong>Halloween</strong><small>A haunted night ride</small></button><button type="button" class="theme-option choice-fall" data-theme-choice="fall" aria-pressed="false" onclick="selectAdminTheme('fall')"><span>🍂</span><strong>Fall</strong><small>A cozy autumn ride</small></button><button type="button" class="theme-option choice-winter" data-theme-choice="winter" aria-pressed="false" onclick="selectAdminTheme('winter')"><span>❄️</span><strong>Winter</strong><small>A snowy scenic ride</small></button><button type="button" class="theme-option choice-rain" data-theme-choice="rain" aria-pressed="false" onclick="selectAdminTheme('rain')"><span>🌧️</span><strong>Rain</strong><small>A cozy ride through the storm</small></button><button type="button" class="theme-option choice-thanksgiving" data-theme-choice="thanksgiving" aria-pressed="false" onclick="selectAdminTheme('thanksgiving')"><span>🦃</span><strong>Thanksgiving</strong><small>Good company &amp; grateful hearts</small></button></div><p id="theme-save-status" role="status" style="font-size:12px;color:var(--text-3);margin-top:10px"></p></div>
       <div style="font-size:14px;color:var(--text-3);line-height:1.6">Super-admin controls. These actions are permanent.</div>
 
       <!-- Settings section -->
@@ -327,8 +329,8 @@
   </div>
 </div>
 
-<script src="theme.js?v=1"></script>
-<script src="celebration.js?v=1"></script>
+<script src="theme.js?v=2"></script>
+<script src="celebration.js?v=2"></script>
 <script src="app.js?v=7"></script>
 </body>
 </html>
