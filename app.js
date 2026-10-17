@@ -1570,6 +1570,19 @@ function showToast(msg, duration = 2200) {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
+window.canReloadForUpdate = function () {
+  if (currentGameId || endingGame || selectedPlayerIds.size) return false;
+  if (!document.getElementById('setup').classList.contains('active')) return false;
+  if ([...document.querySelectorAll('.overlay')].some(el => getComputedStyle(el).display !== 'none')) return false;
+  if (document.querySelector('input:focus, textarea:focus, select:focus')) return false;
+  if ([...document.querySelectorAll('#setup input')].some(el => el.value.trim())) return false;
+  // A room restore may still be waiting on the database during startup.
+  try {
+    if (JSON.parse(sessionStorage.getItem('tr_session') || '{}').gameId) return false;
+  } catch (_) { return false; }
+  return true;
+};
+
 buildTopics();
 loadAppSettings();
 loadPlayerRoster();
