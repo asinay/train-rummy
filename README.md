@@ -91,7 +91,17 @@ The app is now running at **http://127.0.0.1:3000**.
 
 ### 2. Make changes, refresh, and test
 
-> **Cache gotcha:** `index.html` loads `styles.css`/`app.js` with a `?v=N` query param. If you edit either file, bump its `v` — otherwise browsers (yours and your testers') keep serving the cached version and your changes won't appear.
+> **Release version:** `index.html` versions all local scripts and styles with `?v=` so browsers fetch the assets for each release.
+
+For each release, bump the `app-version` meta tag in `index.html` and set every
+local script/stylesheet `?v=` to that same value. `updates.js` checks the published
+entry page without using the browser cache on startup, foreground/online events,
+and every minute while visible. A newer release reloads automatically from an
+idle home screen; active games, room restoration, player selections, typed input,
+and open sheets defer the update. Saved scores and history are not modified.
+Already-open versions without this updater must load it once before automatic
+checks can take effect. Run `node --test tests/updates.test.cjs` to verify update
+behavior and release asset versions.
 
 Core logic lives in three files, plus a handful of theme-specific files:
 
