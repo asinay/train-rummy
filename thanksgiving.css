@@ -1,0 +1,25 @@
+.choice-thanksgiving{background:linear-gradient(140deg,#fff3d6,#e2bc82);color:#6d3227}
+[data-theme=thanksgiving]{color-scheme:light;--bg:#f8eedc;--surface:#fffbf1;--card2:#f3e4c8;--border:#d6b88b;--border-strong:#ad794a;--amber:#843a29;--amber-bg:#f6ddbd;--red:#a22e33;--red-bg:#fae4dd;--green:#4b6328;--green-bg:#edf0d7;--text:#362416;--text-2:#513623;--text-3:#765133;--text-4:#835c39;--shadow-sm:0 2px 10px #78431e14;--shadow-md:0 8px 28px #75431735}
+[data-theme=thanksgiving] body{background:radial-gradient(ellipse at 90% 0%,#d8a25033,transparent 55%),var(--bg)}
+[data-theme=thanksgiving] #setup{background:radial-gradient(ellipse at 50% 0%,#d2a24d30,transparent 50%),linear-gradient(160deg,#fff7e5,#efdcba);padding-top:35px}
+[data-theme=thanksgiving] .theme-bar{background:#fff6e4f5}
+[data-theme=thanksgiving] .logo,[data-theme=thanksgiving] .game-title{color:#843a29}
+[data-theme=thanksgiving] .logo-sub{letter-spacing:2px;margin-top:12px}
+[data-theme=thanksgiving] .seasonal-banner{display:block;font-size:13px;line-height:1.6;text-align:center;color:var(--text-3);margin:15px 0 22px;font-style:italic;max-width:360px}
+[data-theme=thanksgiving] .suits{color:var(--text-4);margin-bottom:25px}[data-theme=thanksgiving] .suits .r{color:#843a29}
+[data-theme=thanksgiving] .start-btn,[data-theme=thanksgiving] .rec-btn,[data-theme=thanksgiving] .room-btn,[data-theme=thanksgiving] .win-btn:not(.sec){background:linear-gradient(135deg,#783b2b,#a4512e);color:#fff9ef;box-shadow:0 4px 16px #843a2925}
+[data-theme=thanksgiving] .start-btn::before{content:'🦃 ';font-size:20px}[data-theme=thanksgiving] .rec-btn::before{content:'🍁 ';font-size:16px}
+[data-theme=thanksgiving] .player-chip.selected{background:#f5dbb5}[data-theme=thanksgiving] .player-chip.selected::before{content:'🍁';margin-right:6px;font-size:13px}
+[data-theme=thanksgiving] .p-row.leader{background:linear-gradient(110deg,#ffeac2,#fffbf1)}[data-theme=thanksgiving] .p-row.leader .p-name::before{content:'🦃 '}
+[data-theme=thanksgiving] .stat-sec-title::before{content:'🥧 '}[data-theme=thanksgiving] .sheet-ttl::before{content:'🦃 '}[data-theme=thanksgiving] .ep-title::before{content:'🌽 '}[data-theme=thanksgiving] .hist-title::before{content:'🍁 '}
+[data-theme=thanksgiving] .sheet{border:1px solid #d6b88b}[data-theme=thanksgiving] .overlay{background:#4b2b175e}
+[data-theme=thanksgiving] .e-inp:focus{background:#fff0d2;box-shadow:0 0 0 2px #d6b88b}
+[data-theme=thanksgiving] .room-badge-inline,[data-theme=thanksgiving] .room-badge{border-color:var(--border-strong)}
+[data-theme=thanksgiving] .toast{background:#6d3828;color:#fff9ef;white-space:normal}[data-theme=thanksgiving] .toast::before{content:'🦃 '}
+[data-theme=thanksgiving] .empty-state::before{content:'🥧';display:block;font-size:34px;margin-bottom:12px}
+[data-theme=thanksgiving] .win-t{font-size:0;line-height:1}[data-theme=thanksgiving] .win-t::after{content:'🦃🏆🥧';display:block;font-size:50px;filter:drop-shadow(0 3px 8px #bb804333)}
+[data-theme=thanksgiving] .classic-train{display:none}[data-theme=thanksgiving] .seasonal-train{display:inline}
+[data-theme=thanksgiving] .season-frame{display:block;position:fixed;inset:54px 0 0;pointer-events:none;z-index:90;overflow:hidden}
+[data-theme=thanksgiving] .s-tl::before{content:'🍁'}[data-theme=thanksgiving] .s-tr::before{content:'🌽'}[data-theme=thanksgiving] .s-bl::before{content:'🦃'}[data-theme=thanksgiving] .s-br::before{content:'🥧'}
+[data-theme=thanksgiving] :is(.p-row,.stat-card,.sheet,.t-card,.e-card){background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg stroke='%23945b2e' fill='none' opacity='.1' stroke-width='1.3'%3E%3Cpath d='M65 8L41 62M50 19Q65 9 65 23Q56 36 50 19ZM42 33Q59 23 57 39Q49 51 42 33ZM51 52Q66 47 73 33Q58 33 51 52Z'/%3E%3C/g%3E%3C/svg%3E");background-position:top right;background-repeat:no-repeat}
+.celebration-thanksgiving .celebration-particle{filter:drop-shadow(0 2px 3px #8b4a2525)}

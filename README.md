@@ -42,7 +42,7 @@ A mobile-first score tracker so one person can log rounds for the whole table �
 - **Mid-game joins** — tap ➕ to add a late arrival; scores split into legs so early and late players are ranked fairly
 - **All-time leaderboard** — sorted by leg win %, folded to the top 3 with "Show all"; each row shows round win rate, avg score, and personal-best game
 - **Player detail stats** — tap any player for a themed sheet: win-rate tiles, a score trend chart, a round-record bar, a hot/cold streak badge, and head-to-head records (e.g. "Scott 11W – 5L – 2T" means *this* player beat Scott 11 times) against every opponent they've shared a leg with
-- **Seasonal themes** — admin picks Classic, Halloween, Fall, or Winter for everyone; themed celebrations, decorations, and copy follow automatically
+- **Seasonal themes** — admin picks Classic, Halloween, Fall, Winter, Rain, or Thanksgiving for everyone; themed celebrations, decorations, and copy follow automatically
 - **Game history** — full expandable history of completed games, exportable as JSON (admin-only)
 - **Rules sheet** — full rules in-app, organized by topic, always one tap away
 - **Canceled games** — ending a game before any rounds are recorded silently deletes it (no history entry); useful for demos or accidental starts
@@ -50,12 +50,13 @@ A mobile-first score tracker so one person can log rounds for the whole table �
 
 ### Seasonal themes
 
-Admin → App theme offers Classic, Halloween, Fall, and Winter. The selection is
+Admin → App theme offers Classic, Halloween, Fall, Winter, Rain, and Thanksgiving. The selection is
 saved in Supabase and shared with all devices; open pages refresh it every five
 seconds. Game scores, room codes, history, and statistics use the existing data.
 
 End-game celebrations match the theme: confetti for Classic, leaves for Fall,
-snowflakes for Winter, and pumpkins, ghosts, and spiders for Halloween. Seasonal
+snowflakes for Winter, pumpkins, ghosts, and spiders for Halloween, raindrops and
+umbrellas for Rain, and turkeys, leaves, corn, and pie for Thanksgiving. Seasonal
 particles respect reduced-motion preferences and clean themselves up after use.
 
 The admin code itself lives only in `app_settings.admin_code` server-side —
@@ -147,3 +148,16 @@ git push
 ```
 
 GitHub Pages rebuilds automatically. The live URL is https://asinay.github.io/train-rummy/.
+
+### Rain and Thanksgiving
+
+Rain adds stormy blues, cloud and raindrop details, and a shower of raindrops
+and umbrellas at game end. Thanksgiving uses warm harvest colors, turkey and
+autumn decorations, and a celebration of turkeys, leaves, corn, and pie. Both
+use the existing shared admin-only selector and respect reduced-motion settings.
+
+Apply `20261013000000_rain_thanksgiving_themes.sql` with `supabase db push` before
+deploying the new frontend. It extends the theme constraint and existing admin
+RPC to accept the two new choices, preserving all existing themes, settings, and
+scoring data. The previous frontend continues to work after the migration, but
+shows Classic if one of the new themes is selected until the frontend is updated.

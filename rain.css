@@ -1,0 +1,31 @@
+/* Rain is a visual theme only; the shared admin setting controls activation. */
+.choice-rain{background:linear-gradient(130deg,#18354c,#355c74);color:#e5f5ff}
+[data-theme=rain]{color-scheme:dark;--bg:#102638;--surface:#1b354a;--card2:#234257;--border:#45687d;--border-strong:#6e98b0;--amber:#a2def5;--amber-bg:#244c64;--red:#ffa8b5;--red-bg:#483647;--green:#a6e3c1;--green-bg:#254b44;--text:#f2f9ff;--text-2:#deedf6;--text-3:#bfd8e7;--text-4:#a9c8db;--shadow-sm:0 3px 12px #04152240;--shadow-md:0 10px 30px #04152288}
+[data-theme=rain] body{background:radial-gradient(ellipse at 85% 0%,#6b91ab30,transparent 50%),linear-gradient(165deg,#17354b,#0d2233)}
+[data-theme=rain] #setup{background:radial-gradient(ellipse at 45% 0%,#759aaa28,transparent 55%),linear-gradient(160deg,#1e4056,#102638);padding-top:35px}
+[data-theme=rain] .theme-bar{background:#132e43f5;box-shadow:0 1px 16px #04152255}
+[data-theme=rain] .logo,[data-theme=rain] .game-title{color:#b2eaff;text-shadow:0 0 24px #82c9ea22}
+[data-theme=rain] .logo-sub{letter-spacing:2px;margin-top:12px}
+[data-theme=rain] .seasonal-banner{display:block;font-size:13px;text-align:center;color:var(--text-3);margin:15px 0 22px;font-style:italic}
+[data-theme=rain] .suits{color:var(--text-4);margin-bottom:25px}[data-theme=rain] .suits .r{color:#a2def5}
+[data-theme=rain] .start-btn,[data-theme=rain] .rec-btn,[data-theme=rain] .room-btn,[data-theme=rain] .win-btn:not(.sec){background:linear-gradient(135deg,#80c6e3,#b0e5f5);color:#122d40;box-shadow:0 4px 16px #83c8e51f}
+[data-theme=rain] .start-btn::before{content:'☔ ';font-size:20px}[data-theme=rain] .rec-btn::before{content:'💧 ';font-size:16px}
+[data-theme=rain] .player-chip.selected{background:#2e566d;box-shadow:0 0 14px #8bd7ef1c}[data-theme=rain] .player-chip.selected::before{content:'💧';margin-right:6px;font-size:13px}
+[data-theme=rain] .p-row.leader{background:linear-gradient(110deg,#2b526b,#1b354a)}[data-theme=rain] .p-row.leader .p-name::before{content:'☔ '}
+[data-theme=rain] .stat-sec-title::before{content:'🌧️ '}[data-theme=rain] .sheet-ttl::before{content:'☔ '}[data-theme=rain] .ep-title::before{content:'☕ '}[data-theme=rain] .hist-title::before{content:'💧 '}
+[data-theme=rain] .sheet{border:1px solid #5b8199}[data-theme=rain] .overlay{background:#051423a8}
+[data-theme=rain] .e-inp:focus{background:#284b63;border-color:#b2eaff;box-shadow:0 0 0 2px #a2def526}
+[data-theme=rain] .dealer-tag{color:#122d40}
+[data-theme=rain] .room-badge-inline,[data-theme=rain] .room-badge{border-color:var(--border-strong)}
+[data-theme=rain] .sync-dot{background:#a6e3c1;box-shadow:0 0 7px #a6e3c144}
+[data-theme=rain] .toast{background:#b0e5f5;color:#122d40;white-space:normal}[data-theme=rain] .toast::before{content:'☔ '}
+[data-theme=rain] .empty-state::before{content:'🌧️';display:block;font-size:34px;margin-bottom:12px}
+[data-theme=rain] .win-t{font-size:0;line-height:1}[data-theme=rain] .win-t::after{content:'☔🏆💧';display:block;font-size:50px;filter:drop-shadow(0 3px 10px #82c9ea33)}
+[data-theme=rain] .classic-train{display:none}[data-theme=rain] .seasonal-train{display:inline}
+[data-theme=rain] .season-frame{display:block;position:fixed;inset:54px 0 0;pointer-events:none;z-index:90;overflow:hidden}
+[data-theme=rain] .s-tl::before{content:'🌧️'}[data-theme=rain] .s-tr::before{content:'🌧️'}[data-theme=rain] .s-bl::before{content:'☔'}[data-theme=rain] .s-br::before{content:'💧'}
+[data-theme=rain] .s-tl,[data-theme=rain] .s-tr{animation:rain-cloud-drift 10s ease-in-out infinite}
+[data-theme=rain] :is(.p-row,.stat-card,.sheet,.t-card,.e-card){background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='86' height='86'%3E%3Cg fill='none' stroke='%23b6e8fa' opacity='.13'%3E%3Cpath d='M45 18Q40 4 53 8Q68 1 71 14Q84 13 81 24H43Q36 21 45 18Z'/%3E%3Cpath d='M48 34L45 43M61 32L58 41M74 34L71 43M52 48L49 57M66 48L63 57' stroke-width='2' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E");background-position:top right;background-repeat:no-repeat}
+.celebration-rain .celebration-particle{filter:drop-shadow(0 0 3px #94dbf044);animation-timing-function:linear}
+@keyframes rain-cloud-drift{0%,100%{transform:translateX(-3px);opacity:.5}50%{transform:translateX(3px);opacity:.7}}
+@media(prefers-reduced-motion:reduce){[data-theme=rain] .season-corner{animation:none}}
