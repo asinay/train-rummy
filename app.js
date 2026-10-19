@@ -979,8 +979,46 @@ async function collapseStatsLeaderboard() {
 }
 
 async function exportHistoryJson() {
+  const client = getSupabase();
   if (!_cachedHistory) _cachedHistory = await loadHistory();
-  const blob = new Blob([JSON.stringify(_cachedHistory, null, 2)], { type: 'application/json' });
+
+  const [{ data: gpRows }, { data: scoreRows }] = await Promise.all([
+    client.from('game_players')
+      .select('game_id, player_id, joined_at_round, sort_order, players(display_name)')
+      .order('sort_order'),
+    client.from('round_scores')
+      .select('game_id, round_number, player_id, score')
+      .order('round_number')
+  ]);
+
+  const gpByGame = {};
+  (gpRows || []).forEach(r => {
+    if (!gpByGame[r.game_id]) gpByGame[r.game_id] = [];
+    gpByGame[r.game_id].push({
+      player_id: r.player_id,
+      display_name: r.players?.display_name || null,
+      joined_at_round: r.joined_at_round ?? 0,
+      sort_order: r.sort_order ?? 0
+    });
+  });
+
+  const scoresByGame = {};
+  (scoreRows || []).forEach(r => {
+    if (!scoresByGame[r.game_id]) scoresByGame[r.game_id] = [];
+    scoresByGame[r.game_id].push({
+      round_number: r.round_number,
+      player_id: r.player_id,
+      score: r.score
+    });
+  });
+
+  const enriched = _cachedHistory.map(g => ({
+    ...g,
+    gamePlayers: g.gameId ? (gpByGame[g.gameId] || []) : [],
+    roundScores: g.gameId ? (scoresByGame[g.gameId] || []) : []
+  }));
+
+  const blob = new Blob([JSON.stringify(enriched, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
